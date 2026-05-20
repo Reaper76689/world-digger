@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  active
+  banned
+}
+
+enum UserRole {
+  user
+  admin
+}
+
+enum ContentStatus {
+  pending
+  approved
+  rejected
+  hidden
+}
+
+enum ModerationTargetType {
+  post
+  comment
+  user
+}
+
+enum ModerationActionType {
+  approve
+  reject
+  hide
+  ban
+}
+
+model User {
+  id          String       @id @default(cuid())
+  nickname    String       @unique
+  avatarUrl   String?
+  bio         String?
+  status      UserStatus   @default(active)
+  role        UserRole     @default(user)
+  posts       Post[]
+  comments    Comment[]
+  actions     ModerationAction[] @relation("AdminActions")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Place {
+  id         String    @id @default(cuid())
+  amapPoiId String?   @unique
+  name       String
+  address    String?
+  city       String?
+  lat        Float
+  lng        Float
+  posts      Post[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([name])
+  @@index([lat, lng])
+}
+
+model Post {
+  id        String        @id @default(cuid())
+  placeId   String
+  authorId  String
+  text      String
+  imageUrls String[]
+  status    ContentStatus @default(pending)
+  place     Place         @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments  Comment[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([placeId, status, createdAt])
+  @@index([authorId])
+}
+
+model Comment {
+  id        String        @id @default(cuid())
+  postId    String
+  authorId  String
+  text      String
+  status    ContentStatus @default(pending)
+  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([postId, status, createdAt])
+  @@index([authorId])
+}
+
+model ModerationAction {
+  id         String               @id @default(cuid())
+  targetType ModerationTargetType
+  targetId   String
+  action     ModerationActionType
+  adminId    String
+  reason     String?
+  admin      User                 @relation("AdminActions", fields: [adminId], references: [id])
+  createdAt  DateTime             @default(now())
+
+  @@index([targetType, targetId])
+}
