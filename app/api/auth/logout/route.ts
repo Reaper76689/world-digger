@@ -1,7 +1,6 @@
-import { cookies } from "next/headers";
+import { clearAuthCookies } from "@/lib/auth";
 
 export async function POST() {
-  const cookieStore = await cookies();
-  cookieStore.delete("shitan_session");
+  await clearAuthCookies();
   return Response.json({ ok: true });
 }

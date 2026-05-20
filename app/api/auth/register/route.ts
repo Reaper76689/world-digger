@@ -3,26 +3,36 @@ import { jsonError } from "@/lib/http";
 import { createSupabaseServerClient, createSupabaseUserClient } from "@/lib/supabase";
 import { z } from "zod";
 
-const loginSchema = z.object({
+const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6)
+  password: z.string().min(6),
+  nickname: z.string().trim().min(2).max(24)
 });
 
 export async function POST(request: Request) {
   try {
-    const input = loginSchema.parse(await request.json());
+    const input = registerSchema.parse(await request.json());
     const adminNickname = process.env.ADMIN_NICKNAME ?? "admin";
     const supabase = createSupabaseServerClient();
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signUp({
       email: input.email,
-      password: input.password
+      password: input.password,
+      options: {
+        data: { nickname: input.nickname }
+      }
     });
 
-    if (error || !data.user || !data.session) {
-      return Response.json({ error: error?.message ?? "登录失败" }, { status: 401 });
+    if (error || !data.user) {
+      return Response.json({ error: error?.message ?? "注册失败" }, { status: 400 });
     }
 
-    const nickname = String(data.user.user_metadata?.nickname || input.email.split("@")[0]);
+    if (!data.session) {
+      return Response.json({
+        user: null,
+        needsConfirmation: true
+      });
+    }
+
     const userClient = createSupabaseUserClient(data.session.access_token);
     const { data: user, error: profileError } = await userClient
       .from("User")
@@ -30,8 +40,8 @@ export async function POST(request: Request) {
         {
         id: data.user.id,
         email: input.email,
-        nickname,
-        role: nickname === adminNickname ? "admin" : "user"
+        nickname: input.nickname,
+        role: input.nickname === adminNickname ? "admin" : "user"
         },
         { onConflict: "id" }
       )
@@ -44,7 +54,10 @@ export async function POST(request: Request) {
 
     await setAuthCookies(data.session.access_token, data.session.refresh_token);
 
-    return Response.json({ user });
+    return Response.json({
+      user,
+      needsConfirmation: false
+    });
   } catch (error) {
     return jsonError(error);
   }

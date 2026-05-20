@@ -42,6 +42,12 @@ npm run dev
 - `NEXT_PUBLIC_AMAP_WEB_KEY` 用于前端高德地图渲染。
 - 未配置高德 key 时，搜索会使用内置示例地点，方便本地演示。
 
+## Supabase
+
+- `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` 用于 Supabase Auth 注册/登录。
+- `DATABASE_URL` 需要指向同一个 Supabase Postgres 数据库，Prisma 才会把用户资料、地点、帖子和审核数据写入 Supabase 后端。
+- 当前项目已包含 Supabase 兼容迁移：用户 ID 使用 `auth.users.id`，并启用了基础 RLS 策略。
+
 ## 图片上传
 
 `/api/uploads/sign` 已包含图片类型、大小和数量限制。配置 `S3_ENDPOINT`、`S3_BUCKET`、`S3_ACCESS_KEY_ID`、`S3_SECRET_ACCESS_KEY`、`S3_PUBLIC_BASE_URL` 后，接口会返回真实 S3 兼容 PUT 签名。

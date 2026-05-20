@@ -38,7 +38,8 @@ enum ModerationActionType {
 }
 
 model User {
-  id          String       @id @default(cuid())
+  id          String       @id @db.Uuid
+  email       String       @unique
   nickname    String       @unique
   avatarUrl   String?
   bio         String?
@@ -70,7 +71,7 @@ model Place {
 model Post {
   id        String        @id @default(cuid())
   placeId   String
-  authorId  String
+  authorId  String        @db.Uuid
   text      String
   imageUrls String[]
   status    ContentStatus @default(pending)
@@ -87,7 +88,7 @@ model Post {
 model Comment {
   id        String        @id @default(cuid())
   postId    String
-  authorId  String
+  authorId  String        @db.Uuid
   text      String
   status    ContentStatus @default(pending)
   post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -104,7 +105,7 @@ model ModerationAction {
   targetType ModerationTargetType
   targetId   String
   action     ModerationActionType
-  adminId    String
+  adminId    String               @db.Uuid
   reason     String?
   admin      User                 @relation("AdminActions", fields: [adminId], references: [id])
   createdAt  DateTime             @default(now())

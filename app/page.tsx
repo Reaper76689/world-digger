@@ -12,6 +12,7 @@ import { io, type Socket } from "socket.io-client";
 
 type User = {
   id: string;
+  email: string;
   nickname: string;
   role: "user" | "admin";
   status: string;

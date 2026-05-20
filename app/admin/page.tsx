@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 type User = {
   id: string;
+  email: string;
   nickname: string;
   role: "user" | "admin";
   status: string;

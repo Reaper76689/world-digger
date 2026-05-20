@@ -1,6 +1,6 @@
-import { requireAdmin } from "@/lib/auth";
+import { getCurrentSupabaseClient, requireAdmin } from "@/lib/auth";
+import { hydratePosts } from "@/lib/feed";
 import { jsonError } from "@/lib/http";
-import { prisma } from "@/lib/prisma";
 import { emitToPlace } from "@/lib/realtime";
 
 type Params = Promise<{
@@ -12,6 +12,7 @@ type Params = Promise<{
 export async function POST(request: Request, { params }: { params: Params }) {
   try {
     const admin = await requireAdmin();
+    const supabase = await getCurrentSupabaseClient();
     const { targetType, targetId, action } = await params;
     const body = await request.json().catch(() => ({}));
     const reason = typeof body.reason === "string" ? body.reason : undefined;
@@ -22,21 +23,19 @@ export async function POST(request: Request, { params }: { params: Params }) {
       }
       const status = action === "approve" ? "approved" : action === "reject" ? "rejected" : "hidden";
 
-      const post = await prisma.post.update({
-        where: { id: targetId },
-        data: { status },
-        include: {
-          author: { select: { id: true, nickname: true, avatarUrl: true } },
-          comments: {
-            where: { status: "approved" },
-            orderBy: { createdAt: "asc" },
-            include: { author: { select: { id: true, nickname: true, avatarUrl: true } } }
-          }
-        }
-      });
+      const { data: post, error } = await supabase
+        .from("Post")
+        .update({ status })
+        .eq("id", targetId)
+        .select("id,placeId,authorId,text,imageUrls,status,createdAt")
+        .single();
+      if (error) throw error;
 
-      await recordAction(admin.id, "post", targetId, action, reason);
-      if (action === "approve") emitToPlace(post.placeId, "post.approved", post);
+      await recordAction(supabase, admin.id, "post", targetId, action, reason);
+      if (action === "approve") {
+        const [hydratedPost] = await hydratePosts(supabase, [post]);
+        emitToPlace(post.placeId, "post.approved", hydratedPost);
+      }
       if (action === "hide") emitToPlace(post.placeId, "post.hidden", { id: post.id });
       return Response.json({ post });
     }
@@ -47,31 +46,43 @@ export async function POST(request: Request, { params }: { params: Params }) {
       }
       const status = action === "approve" ? "approved" : action === "reject" ? "rejected" : "hidden";
 
-      const comment = await prisma.comment.update({
-        where: { id: targetId },
-        data: { status },
-        include: {
-          author: { select: { id: true, nickname: true, avatarUrl: true } },
-          post: { select: { id: true, placeId: true } }
-        }
-      });
+      const { data: comment, error } = await supabase
+        .from("Comment")
+        .update({ status })
+        .eq("id", targetId)
+        .select("id,postId,authorId,text,status,createdAt,post:Post(id,placeId)")
+        .single();
+      if (error) throw error;
 
-      await recordAction(admin.id, "comment", targetId, action, reason);
+      await recordAction(supabase, admin.id, "comment", targetId, action, reason);
       if (action === "approve") {
-        emitToPlace(comment.post.placeId, "comment.approved", {
-          ...comment,
-          postId: comment.post.id
+        const parentPost = Array.isArray(comment.post) ? comment.post[0] : comment.post;
+        const { data: author } = await supabase
+          .from("User")
+          .select("id,nickname,avatarUrl")
+          .eq("id", comment.authorId)
+          .single();
+        emitToPlace(parentPost.placeId, "comment.approved", {
+          id: comment.id,
+          postId: parentPost.id,
+          text: comment.text,
+          createdAt: comment.createdAt,
+          author: author ?? { id: comment.authorId, nickname: "未知用户", avatarUrl: null }
         });
       }
       return Response.json({ comment });
     }
 
     if (targetType === "user" && action === "ban") {
-      const user = await prisma.user.update({
-        where: { id: targetId },
-        data: { status: "banned" }
-      });
-      await recordAction(admin.id, "user", targetId, "ban", reason);
+      const { data: user, error } = await supabase
+        .from("User")
+        .update({ status: "banned" })
+        .eq("id", targetId)
+        .select("id,email,nickname,avatarUrl,bio,status,role,createdAt,updatedAt")
+        .single();
+      if (error) throw error;
+
+      await recordAction(supabase, admin.id, "user", targetId, "ban", reason);
       return Response.json({ user });
     }
 
@@ -82,13 +93,19 @@ export async function POST(request: Request, { params }: { params: Params }) {
 }
 
 async function recordAction(
+  supabase: Awaited<ReturnType<typeof getCurrentSupabaseClient>>,
   adminId: string,
   targetType: "post" | "comment" | "user",
   targetId: string,
   action: "approve" | "reject" | "hide" | "ban",
   reason?: string
 ) {
-  await prisma.moderationAction.create({
-    data: { adminId, targetType, targetId, action, reason }
+  const { error } = await supabase.from("ModerationAction").insert({
+    adminId,
+    targetType,
+    targetId,
+    action,
+    reason
   });
+  if (error) throw error;
 }
