@@ -7,25 +7,26 @@ export type PlaceCandidate = {
   lng: number;
 };
 
-type AmapPoi = {
-  id?: string;
+type NominatimPlace = {
+  osm_type?: string;
+  osm_id?: number;
+  display_name?: string;
   name?: string;
-  address?: string | unknown[];
-  cityname?: string;
-  location?: string;
+  lat?: string;
+  lon?: string;
+  address?: {
+    city?: string;
+    town?: string;
+    village?: string;
+    municipality?: string;
+    state?: string;
+    country?: string;
+  };
 };
 
 const fallbackPlaces: PlaceCandidate[] = [
   {
-    amapPoiId: "mock-shanghai-jiaotong",
-    name: "上海交通大学 闵行校区",
-    address: "上海市闵行区东川路800号",
-    city: "上海市",
-    lat: 31.0252,
-    lng: 121.4341
-  },
-  {
-    amapPoiId: "mock-west-lake",
+    amapPoiId: "osm-fallback-west-lake",
     name: "杭州西湖风景名胜区",
     address: "浙江省杭州市西湖区龙井路1号",
     city: "杭州市",
@@ -33,49 +34,71 @@ const fallbackPlaces: PlaceCandidate[] = [
     lng: 120.1415
   },
   {
-    amapPoiId: "mock-sanlitun",
-    name: "三里屯太古里",
-    address: "北京市朝阳区三里屯路19号",
+    amapPoiId: "osm-fallback-sanlitun",
+    name: "三里屯",
+    address: "北京市朝阳区三里屯",
     city: "北京市",
-    lat: 39.9369,
-    lng: 116.4545
+    lat: 39.937492,
+    lng: 116.455294
+  },
+  {
+    amapPoiId: "osm-fallback-sjtu",
+    name: "上海交通大学 闵行校区",
+    address: "上海市闵行区东川路800号",
+    city: "上海市",
+    lat: 31.025626,
+    lng: 121.436882
   }
 ];
 
 export async function searchAmapPlaces(query: string): Promise<PlaceCandidate[]> {
-  const key = process.env.AMAP_REST_KEY;
-  if (!key) {
-    return fallbackPlaces.filter((place) => {
-      const haystack = `${place.name}${place.address}${place.city}`;
-      return haystack.includes(query);
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("q", query);
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("addressdetails", "1");
+  url.searchParams.set("limit", "12");
+  url.searchParams.set("accept-language", "zh-CN,zh,en");
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        "User-Agent": "ShitanMapSocial/0.1 (local development)"
+      },
+      next: { revalidate: 300 }
     });
+  } catch {
+    return fallbackSearch(query);
   }
 
-  const url = new URL("https://restapi.amap.com/v3/place/text");
-  url.searchParams.set("key", key);
-  url.searchParams.set("keywords", query);
-  url.searchParams.set("extensions", "base");
-  url.searchParams.set("offset", "12");
-  url.searchParams.set("page", "1");
+  if (!response.ok) return fallbackSearch(query);
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error("Amap search failed");
-  }
-
-  const data = (await response.json()) as { pois?: AmapPoi[] };
+  const data = (await response.json()) as NominatimPlace[];
   const places: PlaceCandidate[] = [];
-  for (const poi of data.pois ?? []) {
-    const [lng, lat] = (poi.location ?? "").split(",").map(Number);
-    if (!poi.name || Number.isNaN(lat) || Number.isNaN(lng)) continue;
+  for (const place of data) {
+    const lat = Number(place.lat);
+    const lng = Number(place.lon);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) continue;
+    const city =
+      place.address?.city ??
+      place.address?.town ??
+      place.address?.village ??
+      place.address?.municipality ??
+      place.address?.state ??
+      place.address?.country;
+    const name = place.name || place.display_name?.split(",")[0] || query;
     places.push({
-      amapPoiId: poi.id,
-      name: poi.name,
-      address: Array.isArray(poi.address) ? "" : poi.address,
-      city: poi.cityname,
+      amapPoiId: place.osm_type && place.osm_id ? `osm-${place.osm_type}-${place.osm_id}` : undefined,
+      name,
+      address: place.display_name,
+      city,
       lat,
       lng
     });
   }
   return places;
+}
+
+function fallbackSearch(query: string) {
+  return fallbackPlaces.filter((place) => `${place.name}${place.address}${place.city}`.includes(query));
 }

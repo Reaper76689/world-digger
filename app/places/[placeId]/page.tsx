@@ -6,7 +6,7 @@ import { LoginPanel } from "@/components/LoginPanel";
 import { PostComposer } from "@/components/PostComposer";
 import type { PlaceIntel } from "@/types/place-intel";
 import type { FeedPost } from "@/types/shitan";
-import { ArrowLeft, ArrowUpRight, CloudSun, Compass, ExternalLink, Flame, Loader2, MapPinned, Newspaper, Radio, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, CloudSun, Compass, ExternalLink, Flame, Loader2, Newspaper, Radio, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { io, type Socket } from "socket.io-client";
@@ -100,7 +100,7 @@ export default function PlacePage({ params }: { params: Promise<{ placeId: strin
     const nextPlace = placeData.place;
     setPlace(nextPlace);
 
-    const params = new URLSearchParams({
+    const query = new URLSearchParams({
       name: nextPlace.name,
       city: nextPlace.city ?? "",
       lat: String(nextPlace.lat),
@@ -109,7 +109,7 @@ export default function PlacePage({ params }: { params: Promise<{ placeId: strin
 
     const [feedData, intelData, signalData] = await Promise.all([
       fetch(`/api/places/${id}/posts`).then((response) => response.json()),
-      fetch(`/api/places/intel?${params.toString()}`).then((response) => response.json()),
+      fetch(`/api/places/intel?${query.toString()}`).then((response) => response.json()),
       fetch(`/api/places/${id}/signals`).then((response) => response.json())
     ]);
 
@@ -165,7 +165,7 @@ export default function PlacePage({ params }: { params: Promise<{ placeId: strin
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 <Metric label="已发布内容" value={posts.length} />
                 <Metric label="实时热点" value={signals.length} />
-                <Metric label="高德 POI" value={place.amapPoiId ? "已接入" : "坐标地点"} />
+                <Metric label="OSM 地点" value={place.amapPoiId ? "已接入" : "坐标地点"} />
               </div>
             </div>
             <AmapPreview lat={place.lat} lng={place.lng} name={place.name} compact />
@@ -225,16 +225,22 @@ function HotspotsPanel({ signals }: { signals: Signal[] }) {
 }
 
 function PlaceIntelPanel({ intel, place }: { intel: PlaceIntel | null; place: Place }) {
-  const amapUrl = `https://uri.amap.com/marker?position=${place.lng},${place.lat}&name=${encodeURIComponent(place.name)}`;
+  const osmUrl = `https://www.openstreetmap.org/?mlat=${place.lat}&mlon=${place.lng}#map=16/${place.lat}/${place.lng}`;
   return (
     <section className="rounded-xl border border-white/70 bg-white p-4 shadow-soft">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="font-bold">高德地点信息与外部线索</h3>
+          <h3 className="font-bold">OpenStreetMap 地点信息与外部线索</h3>
           <p className="mt-1 text-sm text-ink/55">地点坐标、地图跳转、天气和百科公开摘要会在这里聚合。</p>
         </div>
-        <a href={amapUrl} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-semibold text-white hover:bg-jade">
-          打开高德
+        <a
+          href={osmUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="在 OpenStreetMap 中打开此地点"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-semibold text-white hover:bg-jade"
+        >
+          打开 OSM
           <ExternalLink className="h-4 w-4" />
         </a>
       </div>
@@ -262,7 +268,7 @@ function PlaceIntelPanel({ intel, place }: { intel: PlaceIntel | null; place: Pl
         </InfoCard>
         <InfoCard icon={<ExternalLink className="h-5 w-5" />} title="外部跳转">
           <div className="space-y-2">
-            {(intel?.links ?? [{ label: "高德地图", url: amapUrl }]).map((link) => (
+            {(intel?.links ?? [{ label: "OpenStreetMap", url: osmUrl }]).map((link) => (
               <a key={link.url} href={link.url} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-lg bg-stone px-3 py-2 text-sm font-semibold text-ink hover:text-jade">
                 {link.label}
                 <ArrowUpRight className="h-4 w-4" />
@@ -287,7 +293,7 @@ function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: str
   );
 }
 
-function Metric({ label, value }: { label: string; value: string | number }) {
+function Metric({ label, value }: { label: string | number; value: string | number }) {
   return (
     <div className="rounded-lg border border-ink/10 bg-stone px-3 py-3">
       <p className="text-xs text-ink/45">{label}</p>

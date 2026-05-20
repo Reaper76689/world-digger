@@ -5,16 +5,21 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["public", "auth"]
 }
 
 enum UserStatus {
   active
   banned
+
+  @@schema("public")
 }
 
 enum UserRole {
   user
   admin
+
+  @@schema("public")
 }
 
 enum ContentStatus {
@@ -22,12 +27,16 @@ enum ContentStatus {
   approved
   rejected
   hidden
+
+  @@schema("public")
 }
 
 enum ModerationTargetType {
   post
   comment
   user
+
+  @@schema("public")
 }
 
 enum ModerationActionType {
@@ -35,6 +44,8 @@ enum ModerationActionType {
   reject
   hide
   ban
+
+  @@schema("public")
 }
 
 model User {
@@ -51,6 +62,8 @@ model User {
   actions     ModerationAction[] @relation("AdminActions")
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+
+  @@schema("public")
 }
 
 model LoginAccount {
@@ -66,6 +79,7 @@ model LoginAccount {
   @@unique([provider, account])
   @@index([userId])
   @@index([account])
+  @@schema("public")
 }
 
 model Place {
@@ -82,6 +96,7 @@ model Place {
 
   @@index([name])
   @@index([lat, lng])
+  @@schema("public")
 }
 
 model Post {
@@ -99,6 +114,7 @@ model Post {
 
   @@index([placeId, status, createdAt])
   @@index([authorId])
+  @@schema("public")
 }
 
 model Comment {
@@ -114,6 +130,7 @@ model Comment {
 
   @@index([postId, status, createdAt])
   @@index([authorId])
+  @@schema("public")
 }
 
 model ModerationAction {
@@ -127,4 +144,5 @@ model ModerationAction {
   createdAt  DateTime             @default(now())
 
   @@index([targetType, targetId])
+  @@schema("public")
 }

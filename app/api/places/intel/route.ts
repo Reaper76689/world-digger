@@ -26,15 +26,12 @@ export async function GET(request: Request) {
   const lat = Number(searchParams.get("lat"));
   const lng = Number(searchParams.get("lng"));
 
-  const [weather, wiki] = await Promise.all([
-    getWeather(lat, lng),
-    getWikiSummary(name, city)
-  ]);
+  const [weather, wiki] = await Promise.all([getWeather(lat, lng), getWikiSummary(name, city)]);
 
   const links: PlaceIntel["links"] = [
     {
-      label: "高德地图",
-      url: `https://uri.amap.com/marker?position=${lng},${lat}&name=${encodeURIComponent(name)}`
+      label: "OpenStreetMap",
+      url: `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`
     },
     {
       label: "百度搜索",

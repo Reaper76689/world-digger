@@ -33,8 +33,6 @@ type Place = PlaceCandidate & {
   id: string;
 };
 
-const exampleQueries = ["西湖", "三里屯", "上海交通大学"];
-
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
   const [query, setQuery] = useState("");
@@ -171,7 +169,7 @@ export default function HomePage() {
                 onKeyDown={(event) => {
                   if (event.key === "Enter") search();
                 }}
-                placeholder="例如：西湖、三里屯、上海交通大学"
+                placeholder="输入地点名称，搜索附近信息"
                 className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none"
               />
               <button
@@ -184,17 +182,6 @@ export default function HomePage() {
               </button>
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              {exampleQueries.map((item) => (
-                <button
-                  key={item}
-                  onClick={() => search(item)}
-                  className="rounded-full border border-ink/10 px-3 py-1.5 text-xs font-medium text-ink/60 transition hover:border-jade/40 hover:text-jade"
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
             {notice ? <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{notice}</p> : null}
           </section>
 
