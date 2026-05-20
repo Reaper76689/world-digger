@@ -29,7 +29,7 @@ export function PostComposer({
         body: JSON.stringify({ fileName: file.name, fileType: file.type, fileSize: file.size })
       });
       if (!sign.ok) {
-        setMessage("图片需为 JPG、PNG 或 WebP，且不超过 5MB");
+        setMessage("图片需为 JPG、PNG 或 WebP，且不超过 5MB。");
         continue;
       }
       const data = await sign.json();
@@ -72,22 +72,31 @@ export function PostComposer({
   }
 
   return (
-    <section className="rounded-lg border border-ink/10 bg-white p-4 shadow-soft">
+    <section className="rounded-xl border border-white/70 bg-white p-4 shadow-soft">
+      <div className="mb-3 flex items-start justify-between gap-4">
+        <div>
+          <h3 className="font-bold">发布现场信息</h3>
+          <p className="mt-1 text-sm text-ink/50">天气、人流、排队、求助、旅行建议都可以发。</p>
+        </div>
+        <span className="rounded-full bg-clay px-3 py-1 text-xs font-semibold text-ink/55">发前审核</span>
+      </div>
+
       <textarea
         value={text}
         onChange={(event) => setText(event.target.value)}
         disabled={disabled}
-        placeholder={disabled ? "登录后发布此地点的现场信息" : "这里现在发生了什么？天气、人流、排队、求助都可以说。"}
-        className="min-h-28 w-full resize-none rounded-md border border-ink/10 p-3 text-sm outline-none focus:border-jade disabled:bg-ink/5"
+        placeholder={disabled ? "登录后发布此地点的现场信息" : "这里现在发生了什么？"}
+        className="min-h-32 w-full resize-none rounded-lg border border-ink/10 bg-stone p-4 text-sm leading-6 outline-none transition focus:border-jade focus:bg-white disabled:bg-ink/5"
       />
+
       {images.length > 0 ? (
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {images.map((image, index) => (
-            <div key={image} className="relative aspect-square overflow-hidden rounded-md border border-ink/10">
+            <div key={image} className="relative aspect-square overflow-hidden rounded-lg border border-ink/10 bg-stone">
               <img src={image} alt="" className="h-full w-full object-cover" />
               <button
                 onClick={() => setImages(images.filter((_, i) => i !== index))}
-                className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-white/90 text-ink"
+                className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-white/95 text-ink shadow-sm"
                 title="移除图片"
               >
                 <X className="h-4 w-4" />
@@ -96,6 +105,7 @@ export function PostComposer({
           ))}
         </div>
       ) : null}
+
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <input
@@ -109,23 +119,23 @@ export function PostComposer({
           <button
             onClick={() => fileRef.current?.click()}
             disabled={disabled || images.length >= 4}
-            className="inline-flex h-10 items-center gap-2 rounded-md border border-ink/10 px-3 text-sm hover:bg-ink/5 disabled:opacity-40"
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-ink/10 px-3 text-sm font-medium transition hover:border-jade/40 hover:text-jade disabled:opacity-40"
           >
             <ImagePlus className="h-4 w-4" />
             图片
           </button>
-          <span className="text-xs text-ink/50">{images.length}/4</span>
+          <span className="text-xs text-ink/45">{images.length}/4</span>
         </div>
         <button
           onClick={submit}
           disabled={disabled || loading || text.trim().length < 1}
-          className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white disabled:opacity-40"
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-ink px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-jade disabled:opacity-40"
         >
           <Send className="h-4 w-4" />
           提交审核
         </button>
       </div>
-      {message ? <p className="mt-3 text-sm text-jade">{message}</p> : null}
+      {message ? <p className="mt-3 rounded-lg bg-mint px-3 py-2 text-sm text-jadeDark">{message}</p> : null}
     </section>
   );
 }

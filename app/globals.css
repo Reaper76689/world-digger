@@ -4,7 +4,7 @@
 
 :root {
   color: #18211f;
-  background: #f8f5ee;
+  background: #f6f3ec;
 }
 
 * {
@@ -15,14 +15,20 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    linear-gradient(180deg, rgba(232, 246, 239, 0.8), rgba(248, 245, 238, 0.96) 42%),
-    #f8f5ee;
+    radial-gradient(circle at 14% 8%, rgba(30, 138, 104, 0.16), transparent 28%),
+    radial-gradient(circle at 88% 0%, rgba(209, 132, 72, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(248, 250, 246, 0.95), rgba(246, 243, 236, 0.98) 42%),
+    #f6f3ec;
 }
 
 button,
 input,
 textarea {
   font: inherit;
+}
+
+::selection {
+  background: rgba(30, 138, 104, 0.18);
 }
 
 .amap-container {

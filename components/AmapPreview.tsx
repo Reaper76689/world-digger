@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { MapPinned } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 declare global {
   interface Window {
@@ -12,7 +12,17 @@ declare global {
   }
 }
 
-export function AmapPreview({ lat, lng, name }: { lat: number; lng: number; name: string }) {
+export function AmapPreview({
+  lat,
+  lng,
+  name,
+  compact = false
+}: {
+  lat: number;
+  lng: number;
+  name: string;
+  compact?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
   const key = process.env.NEXT_PUBLIC_AMAP_WEB_KEY;
@@ -52,11 +62,13 @@ export function AmapPreview({ lat, lng, name }: { lat: number; lng: number; name
   }, [key, lat, lng, name]);
 
   return (
-    <div className="relative h-72 overflow-hidden rounded-lg border border-ink/10 bg-mint">
-      {key ? <div ref={ref} className="h-full w-full" /> : null}
+    <div className={`relative overflow-hidden bg-mint ${compact ? "min-h-72 lg:min-h-full" : "h-72 rounded-lg border border-ink/10"}`}>
+      {key ? <div ref={ref} className="h-full min-h-72 w-full" /> : null}
       {!key || !loaded ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
-          <MapPinned className="h-10 w-10 text-jade" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_30%_20%,rgba(30,138,104,0.18),transparent_32%),linear-gradient(145deg,#e8f6ef,#f8f5ee)] p-6 text-center">
+          <div className="grid h-12 w-12 place-items-center rounded-xl bg-white text-jade shadow-sm">
+            <MapPinned className="h-6 w-6" />
+          </div>
           <div>
             <p className="text-base font-semibold">{name}</p>
             <p className="mt-1 text-sm text-ink/60">

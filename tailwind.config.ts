@@ -7,11 +7,13 @@ const config: Config = {
       colors: {
         ink: "#18211f",
         jade: "#1e8a68",
+        jadeDark: "#14634d",
         mint: "#e8f6ef",
-        clay: "#f5f0e8"
+        clay: "#f5f0e8",
+        stone: "#faf8f3"
       },
       boxShadow: {
-        soft: "0 18px 55px rgba(16, 30, 27, 0.12)"
+        soft: "0 18px 55px rgba(16, 30, 27, 0.10)"
       }
     }
   },

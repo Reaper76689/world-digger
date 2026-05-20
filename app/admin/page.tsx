@@ -72,11 +72,11 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="min-h-screen px-4 py-5">
-      <div className="mx-auto max-w-5xl space-y-5">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <main className="min-h-screen px-4 py-5 sm:px-6 lg:py-7">
+      <div className="mx-auto max-w-6xl space-y-5">
+        <header className="flex flex-col gap-4 rounded-xl border border-white/70 bg-white/85 p-4 shadow-soft backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <Link href="/" className="text-sm text-jade">
+            <Link href="/" className="text-sm font-semibold text-jade hover:text-jadeDark">
               返回世探
             </Link>
             <h1 className="mt-2 text-3xl font-bold">审核后台</h1>
@@ -86,22 +86,25 @@ export default function AdminPage() {
         </header>
 
         {user?.role !== "admin" ? (
-          <div className="rounded-lg border border-ink/10 bg-white p-6 shadow-soft">
-            <ShieldAlert className="h-9 w-9 text-jade" />
-            <p className="mt-3 font-semibold">请使用管理员昵称登录</p>
+          <section className="rounded-xl border border-white/70 bg-white p-8 shadow-soft">
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-mint text-jade">
+              <ShieldAlert className="h-7 w-7" />
+            </div>
+            <p className="mt-4 text-lg font-semibold">请使用管理员昵称登录</p>
             <p className="mt-1 text-sm text-ink/55">本地默认管理员昵称是 admin。</p>
-          </div>
+          </section>
         ) : (
-          <>
-            <QueueSection title={`待审动态 ${posts.length}`}>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <QueueSection title="待审动态" count={posts.length}>
               {posts.map((post) => (
-                <article key={post.id} className="rounded-lg border border-ink/10 bg-white p-4 shadow-sm">
-                  <p className="text-sm text-ink/50">{post.place.name} · {post.author.nickname}</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6">{post.text}</p>
+                <article key={post.id} className="rounded-xl border border-white/70 bg-white p-4 shadow-soft">
+                  <p className="text-sm font-semibold text-jade">{post.place.name}</p>
+                  <p className="mt-1 text-xs text-ink/45">发布者：{post.author.nickname}</p>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-ink/85">{post.text}</p>
                   {post.imageUrls.length > 0 ? (
-                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-3">
                       {post.imageUrls.map((image) => (
-                        <img key={image} src={image} alt="" className="aspect-square rounded-md object-cover" />
+                        <img key={image} src={image} alt="" className="aspect-square rounded-lg border border-ink/10 object-cover" />
                       ))}
                     </div>
                   ) : null}
@@ -115,11 +118,12 @@ export default function AdminPage() {
               ))}
             </QueueSection>
 
-            <QueueSection title={`待审回复 ${comments.length}`}>
+            <QueueSection title="待审回复" count={comments.length}>
               {comments.map((comment) => (
-                <article key={comment.id} className="rounded-lg border border-ink/10 bg-white p-4 shadow-sm">
-                  <p className="text-sm text-ink/50">{comment.post.place.name} · {comment.author.nickname}</p>
-                  <p className="mt-2 text-sm">{comment.text}</p>
+                <article key={comment.id} className="rounded-xl border border-white/70 bg-white p-4 shadow-soft">
+                  <p className="text-sm font-semibold text-jade">{comment.post.place.name}</p>
+                  <p className="mt-1 text-xs text-ink/45">回复者：{comment.author.nickname}</p>
+                  <p className="mt-3 rounded-lg bg-stone p-3 text-sm leading-6">{comment.text}</p>
                   <Actions
                     onApprove={() => act("comment", comment.id, "approve")}
                     onReject={() => act("comment", comment.id, "reject")}
@@ -129,20 +133,29 @@ export default function AdminPage() {
                 </article>
               ))}
             </QueueSection>
-          </>
+          </div>
         )}
 
-        {message ? <p className="rounded-lg bg-mint p-3 text-sm text-ink/70">{message}</p> : null}
+        {message ? <p className="rounded-xl bg-mint p-3 text-sm font-medium text-jadeDark">{message}</p> : null}
       </div>
     </main>
   );
 }
 
-function QueueSection({ title, children }: { title: string; children: React.ReactNode }) {
+function QueueSection({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-lg font-bold">{title}</h2>
-      <div className="space-y-3">{children}</div>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold">{title}</h2>
+        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55 shadow-sm">{count}</span>
+      </div>
+      <div className="space-y-3">
+        {count === 0 ? (
+          <div className="rounded-xl border border-dashed border-ink/20 bg-white/75 p-8 text-center text-sm text-ink/55">暂无内容</div>
+        ) : (
+          children
+        )}
+      </div>
     </section>
   );
 }
@@ -160,19 +173,19 @@ function Actions({
 }) {
   return (
     <div className="mt-4 flex flex-wrap gap-2">
-      <button onClick={onApprove} className="inline-flex h-9 items-center gap-2 rounded-md bg-jade px-3 text-sm font-semibold text-white">
+      <button onClick={onApprove} className="inline-flex h-9 items-center gap-2 rounded-lg bg-jade px-3 text-sm font-semibold text-white transition hover:bg-jadeDark">
         <Check className="h-4 w-4" />
         通过
       </button>
-      <button onClick={onReject} className="inline-flex h-9 items-center gap-2 rounded-md border border-ink/10 px-3 text-sm">
+      <button onClick={onReject} className="inline-flex h-9 items-center gap-2 rounded-lg border border-ink/10 bg-white px-3 text-sm transition hover:border-ink/25">
         <X className="h-4 w-4" />
         拒绝
       </button>
-      <button onClick={onHide} className="inline-flex h-9 items-center gap-2 rounded-md border border-ink/10 px-3 text-sm">
+      <button onClick={onHide} className="inline-flex h-9 items-center gap-2 rounded-lg border border-ink/10 bg-white px-3 text-sm transition hover:border-ink/25">
         <EyeOff className="h-4 w-4" />
         隐藏
       </button>
-      <button onClick={onBan} className="inline-flex h-9 items-center gap-2 rounded-md border border-red-200 px-3 text-sm text-red-700">
+      <button onClick={onBan} className="inline-flex h-9 items-center gap-2 rounded-lg border border-red-200 bg-white px-3 text-sm text-red-700 transition hover:bg-red-50">
         封禁用户
       </button>
     </div>
