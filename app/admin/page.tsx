@@ -49,9 +49,10 @@ export default function AdminPage() {
   async function loadQueue() {
     const response = await fetch("/api/admin/moderation");
     if (!response.ok) {
-      setMessage("需要管理员身份。默认管理员昵称为 admin，可用 ADMIN_NICKNAME 修改。");
+      setMessage("需要管理员身份。当前项目的管理员昵称由 ADMIN_NICKNAME 配置。");
       return;
     }
+
     const data = await response.json();
     setPosts(data.posts ?? []);
     setComments(data.comments ?? []);
@@ -63,12 +64,14 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({})
     });
+
     if (!response.ok) {
       const data = await response.json();
       setMessage(data.error ?? "操作失败");
       return;
     }
-    setMessage("已处理。");
+
+    setMessage("已处理");
     loadQueue();
   }
 
@@ -91,8 +94,8 @@ export default function AdminPage() {
             <div className="grid h-12 w-12 place-items-center rounded-xl bg-mint text-jade">
               <ShieldAlert className="h-7 w-7" />
             </div>
-            <p className="mt-4 text-lg font-semibold">请使用管理员昵称登录</p>
-            <p className="mt-1 text-sm text-ink/55">本地默认管理员昵称是 admin。</p>
+            <p className="mt-4 text-lg font-semibold">请使用管理员账号登录</p>
+            <p className="mt-1 text-sm text-ink/55">当前项目的管理员昵称是 Reaper76。</p>
           </section>
         ) : (
           <div className="grid gap-5 lg:grid-cols-2">
@@ -151,11 +154,7 @@ function QueueSection({ title, count, children }: { title: string; count: number
         <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55 shadow-sm">{count}</span>
       </div>
       <div className="space-y-3">
-        {count === 0 ? (
-          <div className="rounded-xl border border-dashed border-ink/20 bg-white/75 p-8 text-center text-sm text-ink/55">暂无内容</div>
-        ) : (
-          children
-        )}
+        {count === 0 ? <div className="rounded-xl border border-dashed border-ink/20 bg-white/75 p-8 text-center text-sm text-ink/55">暂无内容</div> : children}
       </div>
     </section>
   );

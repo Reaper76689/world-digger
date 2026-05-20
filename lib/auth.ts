@@ -20,7 +20,28 @@ export async function getCurrentUser() {
     .eq("id", data.user.id)
     .maybeSingle();
 
-  return profile;
+  if (profile) return profile;
+
+  const email = data.user.email?.trim().toLowerCase();
+  if (!email) return null;
+
+  const nickname = String(data.user.user_metadata?.nickname || email.split("@")[0]);
+  const adminNickname = process.env.ADMIN_NICKNAME ?? "admin";
+  const { data: createdProfile } = await userClient
+    .from("User")
+    .upsert(
+      {
+        id: data.user.id,
+        email,
+        nickname,
+        role: nickname === adminNickname ? "admin" : "user"
+      },
+      { onConflict: "id" }
+    )
+    .select("id,email,nickname,avatarUrl,bio,status,role,createdAt,updatedAt")
+    .single();
+
+  return createdProfile;
 }
 
 export async function getCurrentAccessToken() {

@@ -23,25 +23,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ pla
     const text = postTextSchema.parse(body.text);
     const imageUrls = imageUrlsSchema.parse(body.imageUrls ?? []);
 
-    const { data: place, error: placeError } = await supabase.from("Place").select("id").eq("id", placeId).maybeSingle();
-    if (placeError) throw placeError;
-    if (!place) {
-      return Response.json({ error: "地点不存在" }, { status: 404 });
-    }
-
-    const { data: post, error } = await supabase
-      .from("Post")
-      .insert({
-        placeId,
-        authorId: user.id,
-        text,
-        imageUrls,
-        status: "pending"
-      })
-      .select("id,placeId,authorId,text,imageUrls,status,createdAt,updatedAt")
-      .single();
+    const { data: post, error } = await supabase.rpc("submit_post", {
+      p_place_id: placeId,
+      p_text: text,
+      p_image_urls: imageUrls
+    });
 
     if (error) throw error;
+    if (!post || post.authorId !== user.id) {
+      throw new Error("帖子提交失败");
+    }
+
     return Response.json({ post });
   } catch (error) {
     return jsonError(error);
