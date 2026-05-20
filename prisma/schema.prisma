@@ -45,11 +45,27 @@ model User {
   bio         String?
   status      UserStatus   @default(active)
   role        UserRole     @default(user)
+  loginAccounts LoginAccount[]
   posts       Post[]
   comments    Comment[]
   actions     ModerationAction[] @relation("AdminActions")
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+}
+
+model LoginAccount {
+  id          String    @id @default(cuid())
+  userId      String    @db.Uuid
+  provider    String    @default("email")
+  account     String
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, account])
+  @@index([userId])
+  @@index([account])
 }
 
 model Place {

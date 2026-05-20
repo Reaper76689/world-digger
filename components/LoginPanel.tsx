@@ -62,6 +62,7 @@ export function AuthForm({ redirectTo = "/" }: { redirectTo?: string }) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [nickname, setNickname] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -72,7 +73,7 @@ export function AuthForm({ redirectTo = "/" }: { redirectTo?: string }) {
     const response = await fetch(mode === "login" ? "/api/auth/login" : "/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, nickname })
+      body: JSON.stringify({ email, password, confirmPassword, nickname })
     });
     const data = await response.json();
     setLoading(false);
@@ -140,16 +141,46 @@ export function AuthForm({ redirectTo = "/" }: { redirectTo?: string }) {
             onKeyDown={(event) => {
               if (event.key === "Enter") submit();
             }}
-            placeholder="至少 6 位"
+            placeholder={mode === "register" ? "至少 6 位，含数字和大小写字母" : "至少 6 位"}
             type="password"
             className="h-11 w-full rounded-lg bg-stone px-3 text-sm outline-none ring-1 ring-transparent transition focus:ring-jade"
           />
         </label>
+
+        {mode === "register" ? (
+          <label className="block">
+            <span className="mb-1 flex items-center justify-between gap-3 text-sm font-semibold">
+              确认密码
+              <span className="text-xs font-normal text-ink/45">至少 6 位，含数字和大小写字母</span>
+            </span>
+            <input
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") submit();
+              }}
+              placeholder="再次输入密码"
+              type="password"
+              className={`h-11 w-full rounded-lg bg-stone px-3 text-sm outline-none ring-1 ring-transparent transition focus:ring-jade ${
+                confirmPassword && password !== confirmPassword ? "ring-red-300 focus:ring-red-400" : ""
+              }`}
+            />
+            {confirmPassword && password !== confirmPassword ? (
+              <span className="mt-1 block text-xs text-red-600">两次输入的密码不同</span>
+            ) : null}
+          </label>
+        ) : null}
       </div>
 
       <button
         onClick={submit}
-        disabled={loading || !email || password.length < 6 || (mode === "register" && nickname.trim().length < 2)}
+        disabled={
+          loading ||
+          !email ||
+          password.length < 6 ||
+          (mode === "register" &&
+            (nickname.trim().length < 2 || password !== confirmPassword || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
+        }
         className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-ink text-sm font-semibold text-white transition hover:bg-jade disabled:opacity-40"
       >
         {mode === "register" ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
