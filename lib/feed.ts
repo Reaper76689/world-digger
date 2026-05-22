@@ -17,24 +17,40 @@ type DbComment = {
 
 type DbPost = {
   id: string;
-  placeId: string;
+  campusId: string;
+  spotId: string;
   authorId: string;
   text: string;
   imageUrls: string[];
   status: string;
+  expiresAt: string;
   createdAt: string;
+  spot?: {
+    id: string;
+    name: string;
+  } | null;
 };
 
-export async function getApprovedFeedForPlace(supabase: ReturnType<typeof createSupabaseUserClient>, placeId: string) {
-  const { data: posts, error } = await supabase
+export async function getApprovedFeedForCampus(
+  supabase: ReturnType<typeof createSupabaseUserClient>,
+  campusId: string,
+  spotId?: string | null
+) {
+  let query = supabase
     .from("Post")
-    .select("id,placeId,authorId,text,imageUrls,status,createdAt")
-    .eq("placeId", placeId)
+    .select("id,campusId,spotId,authorId,text,imageUrls,status,expiresAt,createdAt,spot:Spot(id,name)")
+    .eq("campusId", campusId)
     .eq("status", "approved")
+    .gt("expiresAt", new Date().toISOString())
     .order("createdAt", { ascending: false });
 
+  if (spotId) {
+    query = query.eq("spotId", spotId);
+  }
+
+  const { data: posts, error } = await query;
   if (error) throw error;
-  return hydratePosts(supabase, posts ?? []);
+  return hydratePosts(supabase, normalizePosts(posts ?? []));
 }
 
 export async function hydratePosts(supabase: ReturnType<typeof createSupabaseUserClient>, posts: DbPost[]) {
@@ -85,4 +101,14 @@ export async function hydratePosts(supabase: ReturnType<typeof createSupabaseUse
       author: userMap.get(comment.authorId) ?? { id: comment.authorId, nickname: "未知用户", avatarUrl: null }
     }))
   }));
+}
+
+function normalizePosts(posts: unknown[]): DbPost[] {
+  return posts.map((post) => {
+    const item = post as DbPost & { spot?: DbPost["spot"] | DbPost["spot"][] };
+    return {
+      ...item,
+      spot: Array.isArray(item.spot) ? item.spot[0] : item.spot
+    };
+  });
 }

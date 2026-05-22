@@ -1,6 +1,8 @@
-# 世探
+# 真探
 
-世探是一个按地点组织动态流的地图社交 Web App MVP。用户可以搜索地点、进入地点页、发布文字和图片动态；内容先进入审核队列，管理员通过后会公开展示并实时推送给正在浏览该地点的人。
+真探是一个面向河南高校的校园现场动态 Web App MVP。用户先选择具体校区，再围绕食堂、图书馆、教学楼、宿舍、操场、快递站、超市等固定点位发布和查看实时内容。
+
+内容默认先进入审核队列，管理员通过后公开展示；公开内容默认 24 小时后过期，过期后不删除数据库记录，但不会出现在实时流中。
 
 ## 快速开始
 
@@ -36,17 +38,20 @@ npm run dev
 
 默认访问 `http://localhost:3000`。默认管理员昵称是 `admin`，可通过 `ADMIN_NICKNAME` 修改。
 
-## 地图和搜索
+## 校园数据
 
-- `AMAP_REST_KEY` 用于服务端地点搜索。
-- `NEXT_PUBLIC_AMAP_WEB_KEY` 用于前端高德地图渲染。
-- 未配置高德 key 时，搜索会使用内置示例地点，方便本地演示。
+- 第一版只做河南普通高校校园版。
+- 校园候选数据位于 `lib/henan-campuses.ts`。
+- 178 所河南普通高校全部进入候选列表。
+- 已官方核验的多校区学校会拆成 `XX大学（YY校区）`；未核验学校先作为单一 Campus。
+- 用户选择 Campus 时，系统会自动创建该 Campus，并生成 7 个默认 Spot：食堂、图书馆、教学楼、宿舍、操场、快递站、超市。
+- 第一版不允许普通用户自由创建 Spot。
 
 ## Supabase
 
 - `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` 用于 Supabase Auth 注册/登录。
-- `DATABASE_URL` 需要指向同一个 Supabase Postgres 数据库，Prisma 才会把用户资料、地点、帖子和审核数据写入 Supabase 后端。
-- 当前项目已包含 Supabase 兼容迁移：用户 ID 使用 `auth.users.id`，并启用了基础 RLS 策略。
+- `DATABASE_URL` 需要指向同一个 Supabase Postgres 数据库。
+- 当前项目使用 Prisma 管理 Campus、Spot、Post、Comment、ModerationAction 等数据。
 
 ## 图片上传
 

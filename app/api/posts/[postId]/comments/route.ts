@@ -15,6 +15,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pos
       .select("id")
       .eq("id", postId)
       .eq("status", "approved")
+      .gt("expiresAt", new Date().toISOString())
       .maybeSingle();
     if (postError) throw postError;
     if (!post) {

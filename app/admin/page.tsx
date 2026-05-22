@@ -17,9 +17,11 @@ type PendingPost = {
   id: string;
   text: string;
   imageUrls: string[];
+  expiresAt: string;
   createdAt: string;
   author: { id: string; nickname: string; status: string };
-  place: { name: string; address: string | null };
+  campus: { displayName: string; city: string };
+  spot: { name: string } | null;
 };
 
 type PendingComment = {
@@ -27,7 +29,7 @@ type PendingComment = {
   text: string;
   createdAt: string;
   author: { id: string; nickname: string; status: string };
-  post: { id: string; place: { name: string } };
+  post: { id: string; campus: { displayName: string }; spot: { name: string } | null };
 };
 
 export default function AdminPage() {
@@ -58,11 +60,16 @@ export default function AdminPage() {
     setComments(data.comments ?? []);
   }
 
-  async function act(targetType: "post" | "comment" | "user", targetId: string, action: "approve" | "reject" | "hide" | "ban") {
+  async function act(
+    targetType: "post" | "comment" | "user",
+    targetId: string,
+    action: "approve" | "reject" | "hide" | "ban",
+    reason?: string
+  ) {
     const response = await fetch(`/api/admin/moderation/${targetType}/${targetId}/${action}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({})
+      body: JSON.stringify({ reason: reason?.trim() || undefined })
     });
 
     if (!response.ok) {
@@ -81,7 +88,7 @@ export default function AdminPage() {
         <header className="flex flex-col gap-4 rounded-xl border border-white/70 bg-white/85 p-4 shadow-soft backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Link href="/" className="text-sm font-semibold text-jade hover:text-jadeDark">
-              返回世探
+              返回真探
             </Link>
             <h1 className="mt-2 text-3xl font-bold">审核后台</h1>
             <p className="mt-1 text-sm text-ink/55">处理待公开的地点动态和回复。</p>
@@ -102,8 +109,10 @@ export default function AdminPage() {
             <QueueSection title="待审动态" count={posts.length}>
               {posts.map((post) => (
                 <article key={post.id} className="rounded-xl border border-white/70 bg-white p-4 shadow-soft">
-                  <p className="text-sm font-semibold text-jade">{post.place.name}</p>
-                  <p className="mt-1 text-xs text-ink/45">发布者：{post.author.nickname}</p>
+                  <p className="text-sm font-semibold text-jade">{post.campus.displayName}</p>
+                  <p className="mt-1 text-xs text-ink/45">
+                    发布者：{post.author.nickname} · {post.spot?.name ?? "校园现场"} · {formatExpiry(post.expiresAt)}
+                  </p>
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-ink/85">{post.text}</p>
                   {post.imageUrls.length > 0 ? (
                     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-3">
@@ -114,8 +123,8 @@ export default function AdminPage() {
                   ) : null}
                   <Actions
                     onApprove={() => act("post", post.id, "approve")}
-                    onReject={() => act("post", post.id, "reject")}
-                    onHide={() => act("post", post.id, "hide")}
+                    onReject={(reason) => act("post", post.id, "reject", reason)}
+                    onHide={(reason) => act("post", post.id, "hide", reason)}
                     onBan={() => act("user", post.author.id, "ban")}
                   />
                 </article>
@@ -125,13 +134,13 @@ export default function AdminPage() {
             <QueueSection title="待审回复" count={comments.length}>
               {comments.map((comment) => (
                 <article key={comment.id} className="rounded-xl border border-white/70 bg-white p-4 shadow-soft">
-                  <p className="text-sm font-semibold text-jade">{comment.post.place.name}</p>
-                  <p className="mt-1 text-xs text-ink/45">回复者：{comment.author.nickname}</p>
+                  <p className="text-sm font-semibold text-jade">{comment.post.campus.displayName}</p>
+                  <p className="mt-1 text-xs text-ink/45">回复者：{comment.author.nickname} · {comment.post.spot?.name ?? "校园现场"}</p>
                   <p className="mt-3 rounded-lg bg-stone p-3 text-sm leading-6">{comment.text}</p>
                   <Actions
                     onApprove={() => act("comment", comment.id, "approve")}
-                    onReject={() => act("comment", comment.id, "reject")}
-                    onHide={() => act("comment", comment.id, "hide")}
+                    onReject={(reason) => act("comment", comment.id, "reject", reason)}
+                    onHide={(reason) => act("comment", comment.id, "hide", reason)}
                     onBan={() => act("user", comment.author.id, "ban")}
                   />
                 </article>
@@ -144,6 +153,13 @@ export default function AdminPage() {
       </div>
     </main>
   );
+}
+
+function formatExpiry(value: string) {
+  const expiresAt = new Date(value).getTime();
+  const diff = expiresAt - Date.now();
+  if (diff <= 0) return "已过期";
+  return `${Math.ceil(diff / (1000 * 60 * 60))} 小时后过期`;
 }
 
 function QueueSection({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
@@ -167,27 +183,38 @@ function Actions({
   onBan
 }: {
   onApprove: () => void;
-  onReject: () => void;
-  onHide: () => void;
+  onReject: (reason?: string) => void;
+  onHide: (reason?: string) => void;
   onBan: () => void;
 }) {
+  const [reason, setReason] = useState("");
+
   return (
-    <div className="mt-4 flex flex-wrap gap-2">
-      <button onClick={onApprove} className="inline-flex h-9 items-center gap-2 rounded-lg bg-jade px-3 text-sm font-semibold text-white transition hover:bg-jadeDark">
-        <Check className="h-4 w-4" />
-        通过
-      </button>
-      <button onClick={onReject} className="inline-flex h-9 items-center gap-2 rounded-lg border border-ink/10 bg-white px-3 text-sm transition hover:border-ink/25">
-        <X className="h-4 w-4" />
-        拒绝
-      </button>
-      <button onClick={onHide} className="inline-flex h-9 items-center gap-2 rounded-lg border border-ink/10 bg-white px-3 text-sm transition hover:border-ink/25">
-        <EyeOff className="h-4 w-4" />
-        隐藏
-      </button>
-      <button onClick={onBan} className="inline-flex h-9 items-center gap-2 rounded-lg border border-red-200 bg-white px-3 text-sm text-red-700 transition hover:bg-red-50">
-        封禁用户
-      </button>
+    <div className="mt-4 space-y-3">
+      <textarea
+        value={reason}
+        onChange={(event) => setReason(event.target.value)}
+        maxLength={240}
+        placeholder="拒绝或隐藏时可填写原因，用户会在自己的发布记录里看到。"
+        className="min-h-20 w-full resize-none rounded-lg border border-ink/10 bg-stone p-3 text-sm leading-6 outline-none transition focus:border-jade focus:bg-white"
+      />
+      <div className="flex flex-wrap gap-2">
+        <button onClick={onApprove} className="inline-flex h-9 items-center gap-2 rounded-lg bg-jade px-3 text-sm font-semibold text-white transition hover:bg-jadeDark">
+          <Check className="h-4 w-4" />
+          通过
+        </button>
+        <button onClick={() => onReject(reason)} className="inline-flex h-9 items-center gap-2 rounded-lg border border-ink/10 bg-white px-3 text-sm transition hover:border-ink/25">
+          <X className="h-4 w-4" />
+          拒绝
+        </button>
+        <button onClick={() => onHide(reason)} className="inline-flex h-9 items-center gap-2 rounded-lg border border-ink/10 bg-white px-3 text-sm transition hover:border-ink/25">
+          <EyeOff className="h-4 w-4" />
+          隐藏
+        </button>
+        <button onClick={onBan} className="inline-flex h-9 items-center gap-2 rounded-lg border border-red-200 bg-white px-3 text-sm text-red-700 transition hover:bg-red-50">
+          封禁用户
+        </button>
+      </div>
     </div>
   );
 }

@@ -4,6 +4,6 @@ declare global {
   var __shitanIo: Server | undefined;
 }
 
-export function emitToPlace(placeId: string, event: string, payload: unknown) {
-  globalThis.__shitanIo?.to(`place:${placeId}`).emit(event, payload);
+export function emitToCampus(campusId: string, event: string, payload: unknown) {
+  globalThis.__shitanIo?.to(`campus:${campusId}`).emit(event, payload);
 }

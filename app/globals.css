@@ -30,8 +30,3 @@ textarea {
 ::selection {
   background: rgba(30, 138, 104, 0.18);
 }
-
-.amap-container {
-  width: 100%;
-  height: 100%;
-}

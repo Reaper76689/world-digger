@@ -82,37 +82,58 @@ model LoginAccount {
   @@schema("public")
 }
 
-model Place {
-  id         String    @id @default(cuid())
-  amapPoiId String?   @unique
-  name       String
-  address    String?
-  city       String?
-  lat        Float
-  lng        Float
-  posts      Post[]
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+model Campus {
+  id          String    @id @default(cuid())
+  schoolName  String
+  campusName  String?
+  displayName String
+  city        String
+  level       String
+  ownership   String
+  sourceCode  String    @unique
+  spots       Spot[]
+  posts       Post[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  @@index([name])
-  @@index([lat, lng])
+  @@index([schoolName])
+  @@index([displayName])
+  @@index([city])
+  @@schema("public")
+}
+
+model Spot {
+  id        String    @id @default(cuid())
+  campusId  String
+  name      String
+  campus    Campus    @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  posts     Post[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([campusId, name])
+  @@index([campusId])
   @@schema("public")
 }
 
 model Post {
   id        String        @id @default(cuid())
-  placeId   String
+  campusId  String
+  spotId    String
   authorId  String        @db.Uuid
   text      String
   imageUrls String[]
   status    ContentStatus @default(pending)
-  place     Place         @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  campus    Campus        @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  spot      Spot          @relation(fields: [spotId], references: [id], onDelete: Restrict)
   author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
   comments  Comment[]
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  @@index([placeId, status, createdAt])
+  @@index([campusId, status, expiresAt, createdAt])
+  @@index([spotId])
   @@index([authorId])
   @@schema("public")
 }

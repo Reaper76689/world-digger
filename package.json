@@ -1,5 +1,5 @@
 {
-  "name": "shitan-map-social",
+  "name": "zhentan-campus-social",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -16,14 +16,13 @@
     "@aws-sdk/s3-request-presigner": "^3.1050.0",
     "@prisma/client": "^6.8.2",
     "@supabase/supabase-js": "^2.106.0",
-    "@types/leaflet": "^1.9.21",
     "@types/node": "^22.15.21",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
-    "leaflet": "^1.9.4",
     "lucide-react": "^0.511.0",
     "next": "^15.3.2",
     "prisma": "^6.8.2",
+    "process": "^0.11.10",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "socket.io": "^4.8.1",

@@ -116,7 +116,7 @@ export function AuthForm({ redirectTo = "/" }: { redirectTo?: string }) {
             <input
               value={nickname}
               onChange={(event) => setNickname(event.target.value)}
-              placeholder="例如：地图探索者"
+              placeholder="例如：校园观察员"
               className="h-11 w-full rounded-lg bg-stone px-3 text-sm outline-none ring-1 ring-transparent transition focus:ring-jade"
             />
           </label>

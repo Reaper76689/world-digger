@@ -11,7 +11,7 @@ export function Feed({
 }: {
   posts: FeedPost[];
   userReady: boolean;
-  onCommentPending: () => void;
+  onCommentPending: () => void | Promise<void>;
 }) {
   if (posts.length === 0) {
     return (
@@ -41,25 +41,39 @@ function PostCard({
 }: {
   post: FeedPost;
   userReady: boolean;
-  onCommentPending: () => void;
+  onCommentPending: () => void | Promise<void>;
 }) {
   const [text, setText] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function comment() {
-    const response = await fetch(`/api/posts/${post.id}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text })
-    });
-    if (!response.ok) {
+    if (loading || !userReady || text.trim().length < 1) return;
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/posts/${post.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
       const data = await response.json();
-      setMessage(data.error ?? "回复失败");
-      return;
+
+      if (!response.ok) {
+        setMessage(data.error ?? "回复失败，请稍后重试。");
+        return;
+      }
+
+      setText("");
+      setMessage("回复已提交审核，审核通过后才会公开显示。");
+      await onCommentPending();
+    } catch {
+      setMessage("回复失败，请检查网络后重试。");
+    } finally {
+      setLoading(false);
     }
-    setText("");
-    setMessage("回复已提交审核。");
-    onCommentPending();
   }
 
   return (
@@ -77,6 +91,9 @@ function PostCard({
       </header>
 
       <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-ink/85">{post.text}</p>
+      <p className="mt-2 inline-flex rounded-full bg-mint px-2.5 py-1 text-xs font-semibold text-jadeDark">
+        {post.spot?.name ?? "校园现场"} · {formatExpiry(post.expiresAt)}
+      </p>
 
       {post.imageUrls.length > 0 ? (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -103,15 +120,15 @@ function PostCard({
           <input
             value={text}
             onChange={(event) => setText(event.target.value)}
-            disabled={!userReady}
+            disabled={!userReady || loading}
             placeholder={userReady ? "补充现场情况" : "登录后回复"}
             className="h-10 min-w-0 flex-1 rounded-md border border-ink/10 bg-white px-3 text-sm outline-none transition focus:border-jade disabled:bg-ink/5"
           />
           <button
             onClick={comment}
-            disabled={!userReady || text.trim().length < 1}
+            disabled={!userReady || loading || text.trim().length < 1}
             className="grid h-10 w-10 place-items-center rounded-md bg-jade text-white transition hover:bg-jadeDark disabled:opacity-40"
-            title="回复"
+            title={loading ? "提交中" : "回复"}
           >
             <Send className="h-4 w-4" />
           </button>
@@ -130,4 +147,12 @@ function formatTime(value: string) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(date);
+}
+
+function formatExpiry(value: string) {
+  const expiresAt = new Date(value).getTime();
+  const diff = expiresAt - Date.now();
+  if (diff <= 0) return "已过期";
+  const hours = Math.ceil(diff / (1000 * 60 * 60));
+  return `${hours} 小时后过期`;
 }

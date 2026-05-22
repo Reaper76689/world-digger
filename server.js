@@ -17,14 +17,14 @@ app.prepare().then(() => {
   globalThis.__shitanIo = io;
 
   io.on("connection", (socket) => {
-    socket.on("place:join", (placeId) => {
-      if (typeof placeId === "string" && placeId.length > 0) {
-        socket.join(`place:${placeId}`);
+    socket.on("campus:join", (campusId) => {
+      if (typeof campusId === "string" && campusId.length > 0) {
+        socket.join(`campus:${campusId}`);
       }
     });
   });
 
   httpServer.listen(port, hostname, () => {
-    console.log(`世探 running at http://localhost:${port}`);
+    console.log(`真探 running at http://localhost:${port}`);
   });
 });

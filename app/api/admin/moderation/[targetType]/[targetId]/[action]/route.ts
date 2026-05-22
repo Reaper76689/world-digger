@@ -1,7 +1,7 @@
 import { getCurrentSupabaseClient, requireAdmin } from "@/lib/auth";
 import { hydratePosts } from "@/lib/feed";
 import { jsonError } from "@/lib/http";
-import { emitToPlace } from "@/lib/realtime";
+import { emitToCampus } from "@/lib/realtime";
 
 type Params = Promise<{
   targetType: string;
@@ -15,7 +15,7 @@ export async function POST(request: Request, { params }: { params: Params }) {
     const supabase = await getCurrentSupabaseClient();
     const { targetType, targetId, action } = await params;
     const body = await request.json().catch(() => ({}));
-    const reason = typeof body.reason === "string" ? body.reason : undefined;
+    const reason = typeof body.reason === "string" && body.reason.trim() ? body.reason.trim() : undefined;
 
     if (targetType === "post") {
       if (action !== "approve" && action !== "reject" && action !== "hide") {
@@ -27,16 +27,22 @@ export async function POST(request: Request, { params }: { params: Params }) {
         .from("Post")
         .update({ status })
         .eq("id", targetId)
-        .select("id,placeId,authorId,text,imageUrls,status,createdAt")
+        .select("id,campusId,spotId,authorId,text,imageUrls,status,expiresAt,createdAt,spot:Spot(id,name)")
         .single();
       if (error) throw error;
 
       await recordAction(supabase, admin.id, "post", targetId, action, reason);
       if (action === "approve") {
-        const [hydratedPost] = await hydratePosts(supabase, [post]);
-        emitToPlace(post.placeId, "post.approved", hydratedPost);
+        const normalizedPost = {
+          ...post,
+          spot: Array.isArray(post.spot) ? post.spot[0] : post.spot
+        };
+        if (new Date(post.expiresAt).getTime() > Date.now()) {
+          const [hydratedPost] = await hydratePosts(supabase, [normalizedPost]);
+          emitToCampus(post.campusId, "post.approved", hydratedPost);
+        }
       }
-      if (action === "hide") emitToPlace(post.placeId, "post.hidden", { id: post.id });
+      if (action === "hide") emitToCampus(post.campusId, "post.hidden", { id: post.id });
       return Response.json({ post });
     }
 
@@ -50,7 +56,7 @@ export async function POST(request: Request, { params }: { params: Params }) {
         .from("Comment")
         .update({ status })
         .eq("id", targetId)
-        .select("id,postId,authorId,text,status,createdAt,post:Post(id,placeId)")
+        .select("id,postId,authorId,text,status,createdAt,post:Post(id,campusId,expiresAt)")
         .single();
       if (error) throw error;
 
@@ -62,13 +68,15 @@ export async function POST(request: Request, { params }: { params: Params }) {
           .select("id,nickname,avatarUrl")
           .eq("id", comment.authorId)
           .single();
-        emitToPlace(parentPost.placeId, "comment.approved", {
-          id: comment.id,
-          postId: parentPost.id,
-          text: comment.text,
-          createdAt: comment.createdAt,
-          author: author ?? { id: comment.authorId, nickname: "未知用户", avatarUrl: null }
-        });
+        if (new Date(parentPost.expiresAt).getTime() > Date.now()) {
+          emitToCampus(parentPost.campusId, "comment.approved", {
+            id: comment.id,
+            postId: parentPost.id,
+            text: comment.text,
+            createdAt: comment.createdAt,
+            author: author ?? { id: comment.authorId, nickname: "未知用户", avatarUrl: null }
+          });
+        }
       }
       return Response.json({ comment });
     }
