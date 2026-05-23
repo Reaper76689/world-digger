@@ -121,6 +121,10 @@ docker compose up -d postgres
 - `netlify deploy --trigger --prod` 不可用，因为该 Netlify 项目尚未配置 CI：CLI 返回 `Project not found. Please rerun "netlify link" and make sure that your project has CI configured.`
 - 尝试配置 CI 属于持久修改 Netlify 项目设置，需要用户明确授权后再执行。
 - 生产站点在尝试后仍可访问，基础检查返回 HTTP `200`，但 v0.4 尚未确认成功上线。
+- 用户已授权改走 GitHub 云端构建后，本地提交 `131db1a docs: record v0.4 deploy notes` 已推送到 `origin/master`。
+- Netlify 站点已通过 API 写入 GitHub 仓库配置：`Reaper76689/world-digger`、分支 `master`。
+- Netlify 已生成 deploy key：`6a11c874793798257ef5561c`。
+- GitHub 端仍需在仓库 Settings -> Deploy keys 添加 Netlify public key；未添加前，云端构建会在 `preparing repo` 阶段失败，错误类似 `Host key verification failed` / `Could not read from remote repository`。
 
 ### 部署命令
 
