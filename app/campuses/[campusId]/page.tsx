@@ -2,9 +2,8 @@
 
 import { Feed } from "@/components/Feed";
 import { LoginPanel } from "@/components/LoginPanel";
-import { PostComposer } from "@/components/PostComposer";
 import type { FeedPost, UserCommentStatusItem, UserContentStatus, UserPostStatusItem } from "@/types/shitan";
-import { ArrowLeft, Clock3, GraduationCap, Loader2, MessageCircle, Radio, School, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Clock3, GraduationCap, Loader2, MessageCircle, PlusCircle, Radio, School, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { io, type Socket } from "socket.io-client";
@@ -91,6 +90,7 @@ export default function CampusPage({ params }: { params: Promise<{ campusId: str
     socket.emit("campus:join", campusId);
     socket.on("post.approved", (post: FeedPost) => {
       if (new Date(post.expiresAt).getTime() <= Date.now()) return;
+      if (activeSpotId && post.spotId !== activeSpotId) return;
       setPosts((current) => [post, ...current.filter((item) => item.id !== post.id)]);
       if (user) loadMine(campusId);
     });
@@ -113,7 +113,7 @@ export default function CampusPage({ params }: { params: Promise<{ campusId: str
       socket.off("comment.approved");
       socket.off("post.hidden");
     };
-  }, [campusId, socket, user]);
+  }, [activeSpotId, campusId, socket, user]);
 
   async function loadCampus(id: string) {
     setLoading(true);
@@ -139,9 +139,9 @@ export default function CampusPage({ params }: { params: Promise<{ campusId: str
 
   async function loadPosts(id = campusId, spotId = activeSpotId) {
     if (!id) return;
-    const params = new URLSearchParams();
-    if (spotId) params.set("spotId", spotId);
-    const suffix = params.toString() ? `?${params.toString()}` : "";
+    const query = new URLSearchParams();
+    if (spotId) query.set("spotId", spotId);
+    const suffix = query.toString() ? `?${query.toString()}` : "";
     const data = await fetchJson<{ posts?: FeedPost[] }>(`/api/campuses/${id}/posts${suffix}`).catch(() => ({ posts: [] }));
     setPosts(data.posts ?? []);
   }
@@ -174,13 +174,8 @@ export default function CampusPage({ params }: { params: Promise<{ campusId: str
     }
   }
 
-  async function handlePostPending() {
-    setNotice("内容已进入审核队列，通过后会公开 24 小时。");
-    await loadMine();
-  }
-
   async function handleCommentPending() {
-    setNotice("回复已进入审核队列，通过后才会公开显示。");
+    setNotice("补充内容已进入审核队列，通过后才会公开显示。");
     await loadMine();
   }
 
@@ -234,52 +229,69 @@ export default function CampusPage({ params }: { params: Promise<{ campusId: str
           </div>
         </header>
 
-        <section className="rounded-xl border border-white/70 bg-white p-5 shadow-soft">
-          <p className="inline-flex items-center gap-2 rounded-full bg-mint px-3 py-1 text-xs font-semibold text-jade">
-            <Radio className="h-3.5 w-3.5" />
-            校园实时页
-          </p>
-          <h2 className="mt-4 text-3xl font-bold">{campus.schoolName}</h2>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <Metric label="公开动态" value={posts.length} />
-            <Metric label="校内点位" value={spots.length} />
-            <Metric label="我的记录" value={user ? mine.posts.length + mine.comments.length : "登录可见"} />
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-white/70 bg-white p-4 shadow-soft">
-          <div className="mb-3 flex items-center gap-2">
-            <School className="h-5 w-5 text-jade" />
-            <h3 className="font-bold">按校内地点筛选</h3>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setActiveSpotId("")}
-              className={`h-9 rounded-lg border px-3 text-sm font-medium ${activeSpotId ? "border-ink/10 bg-white" : "border-jade bg-mint text-jadeDark"}`}
-            >
-              全部
-            </button>
-            {spots.map((spot) => (
-              <button
-                key={spot.id}
-                onClick={() => setActiveSpotId(spot.id)}
-                className={`h-9 rounded-lg border px-3 text-sm font-medium ${activeSpotId === spot.id ? "border-jade bg-mint text-jadeDark" : "border-ink/10 bg-white"}`}
-              >
-                {spot.name}
-              </button>
-            ))}
+        <section className="overflow-hidden rounded-xl border border-white/70 bg-white shadow-soft">
+          <div>
+            <div className="p-5 sm:p-6">
+              <p className="inline-flex items-center gap-2 rounded-full bg-mint px-3 py-1 text-xs font-semibold text-jade">
+                <Radio className="h-3.5 w-3.5" />
+                校园实时状态
+              </p>
+              <h2 className="mt-4 text-3xl font-bold">{campus.schoolName}</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-ink/58">
+                这里不做长帖社交，只收集当下可行动的信息：哪里人少、哪里爆满、哪里还有空位。状态默认 24 小时后从前台隐藏。
+              </p>
+              <div className="mt-5 grid gap-3 sm:max-w-sm">
+                <Metric label="实时状态" value={posts.length} />
+              </div>
+            </div>
           </div>
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[420px_minmax(0,1fr)]">
           <div className="space-y-4">
-            <PostComposer campusId={campus.id} spots={spots} disabled={!user} onPending={handlePostPending} />
+            <section className="overflow-hidden rounded-xl border border-white/70 bg-white shadow-soft">
+              <div className="border-b border-ink/8 bg-[linear-gradient(135deg,#18211f_0%,#1e8a68_58%,#f4c95d_100%)] p-4 text-white">
+                <p className="text-xs font-semibold text-white/70">实时状态发布</p>
+                <h2 className="mt-1 text-xl font-bold">去发布页选择点位和状态</h2>
+              </div>
+              <div className="p-4">
+                <p className="text-sm leading-6 text-ink/55">发布流程已独立成单页，进入后再选择点位、补充说明并点击状态按钮。</p>
+                <Link
+                  href={`/campuses/${campus.id}/publish`}
+                  className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-jade px-4 text-sm font-bold text-white shadow-sm transition hover:bg-jadeDark"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  发布实时状态
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </section>
             {user ? <MyContentPanel mine={mine} loading={mineLoading} /> : null}
           </div>
           <div className="space-y-3">
             <div className="rounded-xl border border-white/70 bg-white p-4 shadow-sm">
-              <h3 className="font-bold">实时内容</h3>
-              <p className="mt-1 text-sm text-ink/55">这里只显示审核通过且尚未过期的校园内容，默认按发布时间倒序。</p>
+              <div className="flex items-center gap-2">
+                <School className="h-5 w-5 text-jade" />
+                <h3 className="font-bold">最新状态</h3>
+              </div>
+              <p className="mt-1 text-sm text-ink/55">只显示已公开且未过期的状态，默认按发布时间倒序排列。</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={() => setActiveSpotId("")}
+                  className={`h-9 rounded-lg border px-3 text-sm font-medium ${activeSpotId ? "border-ink/10 bg-white" : "border-jade bg-mint text-jadeDark"}`}
+                >
+                  全部
+                </button>
+                {spots.map((spot) => (
+                  <button
+                    key={spot.id}
+                    onClick={() => setActiveSpotId(spot.id)}
+                    className={`h-9 rounded-lg border px-3 text-sm font-medium ${activeSpotId === spot.id ? "border-jade bg-mint text-jadeDark" : "border-ink/10 bg-white"}`}
+                  >
+                    {spot.name}
+                  </button>
+                ))}
+              </div>
             </div>
             <Feed posts={posts} userReady={Boolean(user)} onCommentPending={handleCommentPending} />
           </div>
@@ -299,25 +311,23 @@ function MyContentPanel({ mine, loading }: { mine: MineState; loading: boolean }
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-bold">我的发布记录</h3>
-          <p className="mt-1 text-sm text-ink/50">这里记录你在当前校区的最近发布、审核结果和管理员说明。</p>
+          <p className="mt-1 text-sm text-ink/50">查看你在当前校区发布、补充和审核后的结果。</p>
         </div>
         <span className="rounded-full bg-mint px-3 py-1 text-xs font-semibold text-jade">{loading ? "刷新中" : `${total} 条`}</span>
       </div>
 
       {total === 0 ? (
-        <div className="mt-4 rounded-lg border border-dashed border-ink/15 bg-stone p-4 text-sm text-ink/55">
-          暂无发布记录。发布现场信息或回复后，会先出现在这里。
-        </div>
+        <div className="mt-4 rounded-lg border border-dashed border-ink/15 bg-stone p-4 text-sm text-ink/55">还没有记录。发布实时状态后会先出现在这里。</div>
       ) : (
         <div className="mt-4 space-y-3">
           {mine.posts.map((post) => (
             <article key={post.id} className="rounded-lg border border-ink/10 bg-stone p-3">
               <p className={`flex items-center gap-2 text-xs font-semibold ${statusColor(post.status)}`}>
                 <Clock3 className="h-3.5 w-3.5" />
-                动态 · {statusLabel(post.status)} · {post.spot?.name ?? "校园现场"} · {formatTime(post.createdAt)}
+                状态 · {post.statusTag} · {statusLabel(post.status)} · {post.spot?.name ?? "校内点位"} · {formatTime(post.createdAt)}
               </p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink/80">{post.text}</p>
-              {post.imageUrls.length > 0 ? <p className="mt-2 text-xs text-ink/45">包含 {post.imageUrls.length} 张图片</p> : null}
+              {post.text !== post.statusTag ? <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink/80">{post.text}</p> : null}
+              <p className="mt-2 text-xs text-ink/45">属实 {post.confirmsCount} · 已过时 {post.outdatedCount}</p>
               <StatusNote status={post.status} reason={post.moderationReason} expiresAt={post.expiresAt} />
             </article>
           ))}
@@ -326,10 +336,10 @@ function MyContentPanel({ mine, loading }: { mine: MineState; loading: boolean }
             <article key={comment.id} className="rounded-lg border border-ink/10 bg-stone p-3">
               <p className={`flex items-center gap-2 text-xs font-semibold ${statusColor(comment.status)}`}>
                 <MessageCircle className="h-3.5 w-3.5" />
-                回复 · {statusLabel(comment.status)} · {formatTime(comment.createdAt)}
+                补充 · {statusLabel(comment.status)} · {formatTime(comment.createdAt)}
               </p>
               <p className="mt-2 rounded-md bg-white px-3 py-2 text-sm leading-6 text-ink/80">{comment.text}</p>
-              <p className="mt-2 line-clamp-2 text-xs text-ink/45">回复于：{comment.post.text}</p>
+              <p className="mt-2 line-clamp-2 text-xs text-ink/45">补充于：{comment.post.text}</p>
               <StatusNote status={comment.status} reason={comment.moderationReason} />
             </article>
           ))}
@@ -380,13 +390,12 @@ function statusColor(status: UserContentStatus) {
 }
 
 function formatTime(value: string) {
-  const date = new Date(value);
   return new Intl.DateTimeFormat("zh-CN", {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit"
-  }).format(date);
+  }).format(new Date(value));
 }
 
 async function fetchJson<T>(url: string): Promise<T> {

@@ -15,14 +15,14 @@ export default function LoginPage() {
             </div>
             <div>
               <h1 className="text-3xl font-bold">真探</h1>
-              <p className="text-sm text-ink/55">返回校园动态首页</p>
+              <p className="text-sm text-ink/55">返回校园实时状态首页</p>
             </div>
           </Link>
           <div className="mt-10 max-w-xl">
             <p className="inline-flex rounded-full bg-mint px-3 py-1 text-xs font-semibold text-jade">Supabase Auth</p>
-            <h2 className="mt-4 text-4xl font-bold leading-tight">登录后发布校园现场信息</h2>
+            <h2 className="mt-4 text-4xl font-bold leading-tight">登录后发布校园实时状态</h2>
             <p className="mt-4 text-sm leading-7 text-ink/60">
-              用户账号由 Supabase Auth 管理，登录后用户资料会同步到 Supabase 的 User 表，后续发帖、评论和审核都能关联到同一个用户 ID。
+              账号用于发布状态、补充现场情况，以及点击“属实”和“已过时”。实时状态会直接公开，24 小时后自动从前台隐藏。
             </p>
           </div>
         </section>

@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: { params: Params }) {
         .from("Post")
         .update({ status })
         .eq("id", targetId)
-        .select("id,campusId,spotId,authorId,text,imageUrls,status,expiresAt,createdAt,spot:Spot(id,name)")
+        .select("id,campusId,spotId,authorId,text,imageUrls,statusTag,status,expiresAt,confirmsCount,outdatedCount,createdAt,campus:Campus(id,displayName,city),spot:Spot(id,name)")
         .single();
       if (error) throw error;
 
@@ -35,6 +35,7 @@ export async function POST(request: Request, { params }: { params: Params }) {
       if (action === "approve") {
         const normalizedPost = {
           ...post,
+          campus: Array.isArray(post.campus) ? post.campus[0] : post.campus,
           spot: Array.isArray(post.spot) ? post.spot[0] : post.spot
         };
         if (new Date(post.expiresAt).getTime() > Date.now()) {

@@ -39,8 +39,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cam
           id: true,
           text: true,
           imageUrls: true,
+          statusTag: true,
           status: true,
           expiresAt: true,
+          confirmsCount: true,
+          outdatedCount: true,
           createdAt: true,
           spot: {
             select: {

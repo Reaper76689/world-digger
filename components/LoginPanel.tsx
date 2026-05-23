@@ -13,13 +13,7 @@ export type AuthUser = {
   status: string;
 };
 
-export function UserNav({
-  user,
-  onUser
-}: {
-  user: AuthUser | null;
-  onUser: (user: AuthUser | null) => void;
-}) {
+export function UserNav({ user, onUser }: { user: AuthUser | null; onUser: (user: AuthUser | null) => void }) {
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     onUser(null);
@@ -27,10 +21,7 @@ export function UserNav({
 
   if (!user) {
     return (
-      <Link
-        href="/login"
-        className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-jade"
-      >
+      <Link href="/login" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-jade">
         <LogIn className="h-4 w-4" />
         登录 / 注册
       </Link>
@@ -46,11 +37,7 @@ export function UserNav({
         <p className="truncate text-sm font-semibold">{user.nickname}</p>
         <p className="truncate text-xs text-ink/50">{user.role === "admin" ? "管理员" : user.email}</p>
       </div>
-      <button
-        onClick={logout}
-        className="grid h-9 w-9 place-items-center rounded-md text-ink/55 transition hover:bg-ink/5 hover:text-ink"
-        title="退出登录"
-      >
+      <button onClick={logout} className="grid h-9 w-9 place-items-center rounded-md text-ink/55 transition hover:bg-ink/5 hover:text-ink" title="退出登录">
         <LogOut className="h-4 w-4" />
       </button>
     </div>
@@ -95,16 +82,10 @@ export function AuthForm({ redirectTo = "/" }: { redirectTo?: string }) {
   return (
     <div className="w-full rounded-xl border border-white/70 bg-white p-5 shadow-soft">
       <div className="mb-4 grid grid-cols-2 rounded-lg bg-stone p-1">
-        <button
-          onClick={() => setMode("login")}
-          className={`h-10 rounded-md text-sm font-semibold transition ${mode === "login" ? "bg-white shadow-sm" : "text-ink/55"}`}
-        >
+        <button onClick={() => setMode("login")} className={`h-10 rounded-md text-sm font-semibold transition ${mode === "login" ? "bg-white shadow-sm" : "text-ink/55"}`}>
           登录
         </button>
-        <button
-          onClick={() => setMode("register")}
-          className={`h-10 rounded-md text-sm font-semibold transition ${mode === "register" ? "bg-white shadow-sm" : "text-ink/55"}`}
-        >
+        <button onClick={() => setMode("register")} className={`h-10 rounded-md text-sm font-semibold transition ${mode === "register" ? "bg-white shadow-sm" : "text-ink/55"}`}>
           注册
         </button>
       </div>
@@ -113,24 +94,13 @@ export function AuthForm({ redirectTo = "/" }: { redirectTo?: string }) {
         {mode === "register" ? (
           <label className="block">
             <span className="mb-1 block text-sm font-semibold">昵称</span>
-            <input
-              value={nickname}
-              onChange={(event) => setNickname(event.target.value)}
-              placeholder="例如：校园观察员"
-              className="h-11 w-full rounded-lg bg-stone px-3 text-sm outline-none ring-1 ring-transparent transition focus:ring-jade"
-            />
+            <input value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="例如：校园观察员" className="h-11 w-full rounded-lg bg-stone px-3 text-sm outline-none ring-1 ring-transparent transition focus:ring-jade" />
           </label>
         ) : null}
 
         <label className="block">
           <span className="mb-1 block text-sm font-semibold">邮箱</span>
-          <input
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@example.com"
-            type="email"
-            className="h-11 w-full rounded-lg bg-stone px-3 text-sm outline-none ring-1 ring-transparent transition focus:ring-jade"
-          />
+          <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" type="email" className="h-11 w-full rounded-lg bg-stone px-3 text-sm outline-none ring-1 ring-transparent transition focus:ring-jade" />
         </label>
 
         <label className="block">
@@ -141,7 +111,7 @@ export function AuthForm({ redirectTo = "/" }: { redirectTo?: string }) {
             onKeyDown={(event) => {
               if (event.key === "Enter") submit();
             }}
-            placeholder={mode === "register" ? "至少 6 位，含数字和大小写字母" : "至少 6 位"}
+            placeholder={mode === "register" ? "至少 6 位，包含数字和大小写字母" : "至少 6 位"}
             type="password"
             className="h-11 w-full rounded-lg bg-stone px-3 text-sm outline-none ring-1 ring-transparent transition focus:ring-jade"
           />
@@ -151,7 +121,7 @@ export function AuthForm({ redirectTo = "/" }: { redirectTo?: string }) {
           <label className="block">
             <span className="mb-1 flex items-center justify-between gap-3 text-sm font-semibold">
               确认密码
-              <span className="text-xs font-normal text-ink/45">至少 6 位，含数字和大小写字母</span>
+              <span className="text-xs font-normal text-ink/45">至少 6 位，包含数字和大小写字母</span>
             </span>
             <input
               value={confirmPassword}
@@ -161,13 +131,9 @@ export function AuthForm({ redirectTo = "/" }: { redirectTo?: string }) {
               }}
               placeholder="再次输入密码"
               type="password"
-              className={`h-11 w-full rounded-lg bg-stone px-3 text-sm outline-none ring-1 ring-transparent transition focus:ring-jade ${
-                confirmPassword && password !== confirmPassword ? "ring-red-300 focus:ring-red-400" : ""
-              }`}
+              className={`h-11 w-full rounded-lg bg-stone px-3 text-sm outline-none ring-1 ring-transparent transition focus:ring-jade ${confirmPassword && password !== confirmPassword ? "ring-red-300 focus:ring-red-400" : ""}`}
             />
-            {confirmPassword && password !== confirmPassword ? (
-              <span className="mt-1 block text-xs text-red-600">两次输入的密码不同</span>
-            ) : null}
+            {confirmPassword && password !== confirmPassword ? <span className="mt-1 block text-xs text-red-600">两次输入的密码不一致</span> : null}
           </label>
         ) : null}
       </div>
@@ -178,8 +144,7 @@ export function AuthForm({ redirectTo = "/" }: { redirectTo?: string }) {
           loading ||
           !email ||
           password.length < 6 ||
-          (mode === "register" &&
-            (nickname.trim().length < 2 || password !== confirmPassword || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
+          (mode === "register" && (nickname.trim().length < 2 || password !== confirmPassword || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
         }
         className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-ink text-sm font-semibold text-white transition hover:bg-jade disabled:opacity-40"
       >
@@ -192,12 +157,6 @@ export function AuthForm({ redirectTo = "/" }: { redirectTo?: string }) {
   );
 }
 
-export function LoginPanel({
-  user,
-  onUser
-}: {
-  user: AuthUser | null;
-  onUser: (user: AuthUser | null) => void;
-}) {
+export function LoginPanel({ user, onUser }: { user: AuthUser | null; onUser: (user: AuthUser | null) => void }) {
   return <UserNav user={user} onUser={onUser} />;
 }

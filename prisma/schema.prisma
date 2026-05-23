@@ -48,6 +48,13 @@ enum ModerationActionType {
   @@schema("public")
 }
 
+enum PostFeedbackType {
+  confirmed
+  outdated
+
+  @@schema("public")
+}
+
 model User {
   id          String       @id @db.Uuid
   email       String       @unique
@@ -59,6 +66,7 @@ model User {
   loginAccounts LoginAccount[]
   posts       Post[]
   comments    Comment[]
+  postFeedback PostFeedback[]
   actions     ModerationAction[] @relation("AdminActions")
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -123,18 +131,39 @@ model Post {
   authorId  String        @db.Uuid
   text      String
   imageUrls String[]
+  statusTag String
   status    ContentStatus @default(pending)
   expiresAt DateTime
+  confirmsCount Int      @default(0)
+  outdatedCount Int      @default(0)
   campus    Campus        @relation(fields: [campusId], references: [id], onDelete: Cascade)
   spot      Spot          @relation(fields: [spotId], references: [id], onDelete: Restrict)
   author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
   comments  Comment[]
+  feedback  PostFeedback[]
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
   @@index([campusId, status, expiresAt, createdAt])
+  @@index([status, expiresAt, createdAt])
   @@index([spotId])
   @@index([authorId])
+  @@schema("public")
+}
+
+model PostFeedback {
+  id        String           @id @default(cuid())
+  postId    String
+  userId    String           @db.Uuid
+  type      PostFeedbackType
+  post      Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([postId, userId])
+  @@index([postId, type])
+  @@index([userId])
   @@schema("public")
 }
 

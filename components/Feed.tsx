@@ -1,34 +1,36 @@
 "use client";
 
 import type { FeedPost } from "@/types/shitan";
-import { MessageCircle, Send, UserRound } from "lucide-react";
+import { CheckCircle2, Clock3, MessageCircle, Send, TimerReset } from "lucide-react";
 import { useState } from "react";
 
 export function Feed({
   posts,
   userReady,
-  onCommentPending
+  onCommentPending,
+  compact = false
 }: {
   posts: FeedPost[];
   userReady: boolean;
   onCommentPending: () => void | Promise<void>;
+  compact?: boolean;
 }) {
   if (posts.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-ink/20 bg-white/80 p-10 text-center shadow-sm">
+      <div className="rounded-xl border border-dashed border-ink/20 bg-white/80 p-8 text-center shadow-sm">
         <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-mint text-jade">
-          <MessageCircle className="h-6 w-6" />
+          <Clock3 className="h-6 w-6" />
         </div>
-        <p className="mt-4 font-semibold">这个地点还没有公开动态</p>
-        <p className="mt-2 text-sm text-ink/55">提交第一条现场信息，审核通过后它会出现在这里。</p>
+        <p className="mt-4 font-semibold">暂时没有实时状态</p>
+        <p className="mt-2 text-sm text-ink/55">有人发布后，会按时间倒序出现在这里。</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {posts.map((post) => (
-        <PostCard key={post.id} post={post} userReady={userReady} onCommentPending={onCommentPending} />
+        <PostCard key={post.id} post={post} userReady={userReady} onCommentPending={onCommentPending} compact={compact} />
       ))}
     </div>
   );
@@ -37,15 +39,52 @@ export function Feed({
 function PostCard({
   post,
   userReady,
-  onCommentPending
+  onCommentPending,
+  compact
 }: {
   post: FeedPost;
   userReady: boolean;
   onCommentPending: () => void | Promise<void>;
+  compact: boolean;
 }) {
   const [text, setText] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [counts, setCounts] = useState({
+    confirmsCount: post.confirmsCount,
+    outdatedCount: post.outdatedCount
+  });
+
+  async function feedback(type: "confirmed" | "outdated") {
+    if (!userReady || loading) {
+      setMessage(userReady ? "" : "登录后可以确认状态是否属实。");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/posts/${post.id}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setMessage(data.error ?? "操作失败，请稍后再试。");
+        return;
+      }
+      setCounts({
+        confirmsCount: data.post.confirmsCount,
+        outdatedCount: data.post.outdatedCount
+      });
+    } catch {
+      setMessage("操作失败，请检查网络后重试。");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function comment() {
     if (loading || !userReady || text.trim().length < 1) return;
@@ -62,15 +101,15 @@ function PostCard({
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage(data.error ?? "回复失败，请稍后重试。");
+        setMessage(data.error ?? "补充失败，请稍后再试。");
         return;
       }
 
       setText("");
-      setMessage("回复已提交审核，审核通过后才会公开显示。");
+      setMessage("补充内容已提交审核。");
       await onCommentPending();
     } catch {
-      setMessage("回复失败，请检查网络后重试。");
+      setMessage("补充失败，请检查网络后重试。");
     } finally {
       setLoading(false);
     }
@@ -78,81 +117,107 @@ function PostCard({
 
   return (
     <article className="rounded-xl border border-white/70 bg-white p-4 shadow-soft">
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-clay text-ink/60">
-            <UserRound className="h-5 w-5" />
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill tag={post.statusTag} />
+            <span className="text-xs font-semibold text-ink/45">{relativeTime(post.createdAt)}</span>
           </div>
-          <div className="min-w-0">
-            <p className="truncate font-semibold">{post.author.nickname}</p>
-            <p className="text-xs text-ink/45">{formatTime(post.createdAt)}</p>
-          </div>
+          <p className="mt-2 text-sm font-semibold text-ink">
+            {post.campus?.displayName ?? "校园"} · {post.spot?.name ?? "校内点位"}
+          </p>
         </div>
+        <p className="rounded-full bg-clay px-3 py-1 text-xs font-semibold text-ink/55">{formatExpiry(post.expiresAt)}</p>
       </header>
 
-      <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-ink/85">{post.text}</p>
-      <p className="mt-2 inline-flex rounded-full bg-mint px-2.5 py-1 text-xs font-semibold text-jadeDark">
-        {post.spot?.name ?? "校园现场"} · {formatExpiry(post.expiresAt)}
-      </p>
+      {post.text && post.text !== post.statusTag ? (
+        <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-ink/80">{post.text}</p>
+      ) : null}
 
-      {post.imageUrls.length > 0 ? (
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {post.imageUrls.map((image) => (
-            <img key={image} src={image} alt="" className="aspect-square rounded-lg border border-ink/10 object-cover" />
-          ))}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          onClick={() => feedback("confirmed")}
+          disabled={loading}
+          className="inline-flex h-9 items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50"
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          属实 {counts.confirmsCount}
+        </button>
+        <button
+          onClick={() => feedback("outdated")}
+          disabled={loading}
+          className="inline-flex h-9 items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+        >
+          <TimerReset className="h-4 w-4" />
+          已过时 {counts.outdatedCount}
+        </button>
+      </div>
+
+      {!compact ? (
+        <div className="mt-4 rounded-lg bg-stone p-3">
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-ink/55">
+            <MessageCircle className="h-4 w-4" />
+            补充现场情况
+          </p>
+          <div className="space-y-2">
+            {post.comments.map((comment) => (
+              <p key={comment.id} className="rounded-md bg-white px-3 py-2 text-sm leading-6 shadow-sm">
+                <span className="font-semibold">{comment.author.nickname}：</span>
+                {comment.text}
+              </p>
+            ))}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <input
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              disabled={!userReady || loading}
+              placeholder={userReady ? "补充一句现场情况" : "登录后补充"}
+              className="h-10 min-w-0 flex-1 rounded-md border border-ink/10 bg-white px-3 text-sm outline-none transition focus:border-jade disabled:bg-ink/5"
+            />
+            <button
+              onClick={comment}
+              disabled={!userReady || loading || text.trim().length < 1}
+              className="grid h-10 w-10 place-items-center rounded-md bg-jade text-white transition hover:bg-jadeDark disabled:opacity-40"
+              title={loading ? "提交中" : "补充"}
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       ) : null}
 
-      <div className="mt-4 rounded-lg bg-stone p-3">
-        <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-ink/55">
-          <MessageCircle className="h-4 w-4" />
-          回复
-        </p>
-        <div className="space-y-2">
-          {post.comments.map((comment) => (
-            <p key={comment.id} className="rounded-md bg-white px-3 py-2 text-sm leading-6 shadow-sm">
-              <span className="font-semibold">{comment.author.nickname}：</span>
-              {comment.text}
-            </p>
-          ))}
-        </div>
-        <div className="mt-3 flex gap-2">
-          <input
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            disabled={!userReady || loading}
-            placeholder={userReady ? "补充现场情况" : "登录后回复"}
-            className="h-10 min-w-0 flex-1 rounded-md border border-ink/10 bg-white px-3 text-sm outline-none transition focus:border-jade disabled:bg-ink/5"
-          />
-          <button
-            onClick={comment}
-            disabled={!userReady || loading || text.trim().length < 1}
-            className="grid h-10 w-10 place-items-center rounded-md bg-jade text-white transition hover:bg-jadeDark disabled:opacity-40"
-            title={loading ? "提交中" : "回复"}
-          >
-            <Send className="h-4 w-4" />
-          </button>
-        </div>
-        {message ? <p className="mt-2 text-xs text-jadeDark">{message}</p> : null}
-      </div>
+      {message ? <p className="mt-3 text-xs text-jadeDark">{message}</p> : null}
     </article>
   );
 }
 
-function formatTime(value: string) {
-  const date = new Date(value);
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(date);
+function StatusPill({ tag }: { tag: string }) {
+  const tone =
+    tag === "人少"
+      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+      : tag === "爆满"
+        ? "bg-red-50 text-red-700 border-red-200"
+        : tag === "有空位"
+          ? "bg-sky-50 text-sky-800 border-sky-200"
+          : "bg-amber-50 text-amber-800 border-amber-200";
+
+  return <span className={`rounded-full border px-3 py-1 text-sm font-bold ${tone}`}>{tag}</span>;
+}
+
+function relativeTime(value: string) {
+  const diff = Date.now() - new Date(value).getTime();
+  const minutes = Math.max(0, Math.floor(diff / 60000));
+  if (minutes < 1) return "刚刚发布";
+  if (minutes < 60) return `${minutes} 分钟前`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} 小时前`;
+  return `${Math.floor(hours / 24)} 天前`;
 }
 
 function formatExpiry(value: string) {
-  const expiresAt = new Date(value).getTime();
-  const diff = expiresAt - Date.now();
+  const diff = new Date(value).getTime() - Date.now();
   if (diff <= 0) return "已过期";
-  const hours = Math.ceil(diff / (1000 * 60 * 60));
+  const hours = Math.ceil(diff / 3600000);
   return `${hours} 小时后过期`;
 }

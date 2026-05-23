@@ -16,7 +16,7 @@ type User = {
 type PendingPost = {
   id: string;
   text: string;
-  imageUrls: string[];
+  statusTag: string;
   expiresAt: string;
   createdAt: string;
   author: { id: string; nickname: string; status: string };
@@ -51,7 +51,7 @@ export default function AdminPage() {
   async function loadQueue() {
     const response = await fetch("/api/admin/moderation");
     if (!response.ok) {
-      setMessage("需要管理员身份。当前项目的管理员昵称由 ADMIN_NICKNAME 配置。");
+      setMessage("需要管理员身份。管理员昵称由 ADMIN_NICKNAME 配置。");
       return;
     }
 
@@ -60,12 +60,7 @@ export default function AdminPage() {
     setComments(data.comments ?? []);
   }
 
-  async function act(
-    targetType: "post" | "comment" | "user",
-    targetId: string,
-    action: "approve" | "reject" | "hide" | "ban",
-    reason?: string
-  ) {
+  async function act(targetType: "post" | "comment" | "user", targetId: string, action: "approve" | "reject" | "hide" | "ban", reason?: string) {
     const response = await fetch(`/api/admin/moderation/${targetType}/${targetId}/${action}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -91,7 +86,7 @@ export default function AdminPage() {
               返回真探
             </Link>
             <h1 className="mt-2 text-3xl font-bold">审核后台</h1>
-            <p className="mt-1 text-sm text-ink/55">处理待公开的地点动态和回复。</p>
+            <p className="mt-1 text-sm text-ink/55">实时状态默认直接公开，这里主要处理补充内容和被隐藏的状态。</p>
           </div>
           <LoginPanel user={user} onUser={setUser} />
         </header>
@@ -102,25 +97,18 @@ export default function AdminPage() {
               <ShieldAlert className="h-7 w-7" />
             </div>
             <p className="mt-4 text-lg font-semibold">请使用管理员账号登录</p>
-            <p className="mt-1 text-sm text-ink/55">当前项目的管理员昵称是 Reaper76。</p>
+            <p className="mt-1 text-sm text-ink/55">当前项目的管理员昵称由环境变量 ADMIN_NICKNAME 决定。</p>
           </section>
         ) : (
           <div className="grid gap-5 lg:grid-cols-2">
-            <QueueSection title="待审动态" count={posts.length}>
+            <QueueSection title="待审状态" count={posts.length}>
               {posts.map((post) => (
                 <article key={post.id} className="rounded-xl border border-white/70 bg-white p-4 shadow-soft">
                   <p className="text-sm font-semibold text-jade">{post.campus.displayName}</p>
                   <p className="mt-1 text-xs text-ink/45">
-                    发布者：{post.author.nickname} · {post.spot?.name ?? "校园现场"} · {formatExpiry(post.expiresAt)}
+                    {post.statusTag} · {post.author.nickname} · {post.spot?.name ?? "校内点位"} · {formatExpiry(post.expiresAt)}
                   </p>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-ink/85">{post.text}</p>
-                  {post.imageUrls.length > 0 ? (
-                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-3">
-                      {post.imageUrls.map((image) => (
-                        <img key={image} src={image} alt="" className="aspect-square rounded-lg border border-ink/10 object-cover" />
-                      ))}
-                    </div>
-                  ) : null}
+                  {post.text !== post.statusTag ? <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-ink/85">{post.text}</p> : null}
                   <Actions
                     onApprove={() => act("post", post.id, "approve")}
                     onReject={(reason) => act("post", post.id, "reject", reason)}
@@ -131,11 +119,11 @@ export default function AdminPage() {
               ))}
             </QueueSection>
 
-            <QueueSection title="待审回复" count={comments.length}>
+            <QueueSection title="待审补充" count={comments.length}>
               {comments.map((comment) => (
                 <article key={comment.id} className="rounded-xl border border-white/70 bg-white p-4 shadow-soft">
                   <p className="text-sm font-semibold text-jade">{comment.post.campus.displayName}</p>
-                  <p className="mt-1 text-xs text-ink/45">回复者：{comment.author.nickname} · {comment.post.spot?.name ?? "校园现场"}</p>
+                  <p className="mt-1 text-xs text-ink/45">补充者：{comment.author.nickname} · {comment.post.spot?.name ?? "校内点位"}</p>
                   <p className="mt-3 rounded-lg bg-stone p-3 text-sm leading-6">{comment.text}</p>
                   <Actions
                     onApprove={() => act("comment", comment.id, "approve")}
@@ -156,10 +144,9 @@ export default function AdminPage() {
 }
 
 function formatExpiry(value: string) {
-  const expiresAt = new Date(value).getTime();
-  const diff = expiresAt - Date.now();
+  const diff = new Date(value).getTime() - Date.now();
   if (diff <= 0) return "已过期";
-  return `${Math.ceil(diff / (1000 * 60 * 60))} 小时后过期`;
+  return `${Math.ceil(diff / 3600000)} 小时后过期`;
 }
 
 function QueueSection({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
@@ -169,9 +156,7 @@ function QueueSection({ title, count, children }: { title: string; count: number
         <h2 className="text-lg font-bold">{title}</h2>
         <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55 shadow-sm">{count}</span>
       </div>
-      <div className="space-y-3">
-        {count === 0 ? <div className="rounded-xl border border-dashed border-ink/20 bg-white/75 p-8 text-center text-sm text-ink/55">暂无内容</div> : children}
-      </div>
+      <div className="space-y-3">{count === 0 ? <div className="rounded-xl border border-dashed border-ink/20 bg-white/75 p-8 text-center text-sm text-ink/55">暂无内容</div> : children}</div>
     </section>
   );
 }
@@ -195,7 +180,7 @@ function Actions({
         value={reason}
         onChange={(event) => setReason(event.target.value)}
         maxLength={240}
-        placeholder="拒绝或隐藏时可填写原因，用户会在自己的发布记录里看到。"
+        placeholder="拒绝或隐藏时可填写原因"
         className="min-h-20 w-full resize-none rounded-lg border border-ink/10 bg-stone p-3 text-sm leading-6 outline-none transition focus:border-jade focus:bg-white"
       />
       <div className="flex flex-wrap gap-2">

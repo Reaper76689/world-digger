@@ -13,10 +13,18 @@ export type FeedPost = {
   id: string;
   text: string;
   imageUrls: string[];
+  statusTag: string;
   campusId: string;
   spotId: string;
   expiresAt: string;
+  confirmsCount: number;
+  outdatedCount: number;
   createdAt: string;
+  campus?: {
+    id: string;
+    displayName: string;
+    city: string;
+  } | null;
   spot: {
     id: string;
     name: string;
@@ -35,8 +43,11 @@ export type UserPostStatusItem = {
   id: string;
   text: string;
   imageUrls: string[];
+  statusTag: string;
   status: UserContentStatus;
   expiresAt: string;
+  confirmsCount: number;
+  outdatedCount: number;
   createdAt: string;
   moderationReason: string | null;
   moderatedAt: string | null;

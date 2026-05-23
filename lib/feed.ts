@@ -22,9 +22,17 @@ type DbPost = {
   authorId: string;
   text: string;
   imageUrls: string[];
+  statusTag: string;
   status: string;
   expiresAt: string;
+  confirmsCount: number;
+  outdatedCount: number;
   createdAt: string;
+  campus?: {
+    id: string;
+    displayName: string;
+    city: string;
+  } | null;
   spot?: {
     id: string;
     name: string;
@@ -38,7 +46,7 @@ export async function getApprovedFeedForCampus(
 ) {
   let query = supabase
     .from("Post")
-    .select("id,campusId,spotId,authorId,text,imageUrls,status,expiresAt,createdAt,spot:Spot(id,name)")
+    .select("id,campusId,spotId,authorId,text,imageUrls,statusTag,status,expiresAt,confirmsCount,outdatedCount,createdAt,campus:Campus(id,displayName,city),spot:Spot(id,name)")
     .eq("campusId", campusId)
     .eq("status", "approved")
     .gt("expiresAt", new Date().toISOString())
@@ -49,6 +57,19 @@ export async function getApprovedFeedForCampus(
   }
 
   const { data: posts, error } = await query;
+  if (error) throw error;
+  return hydratePosts(supabase, normalizePosts(posts ?? []));
+}
+
+export async function getLatestApprovedFeed(supabase: ReturnType<typeof createSupabaseUserClient>, limit = 30) {
+  const { data: posts, error } = await supabase
+    .from("Post")
+    .select("id,campusId,spotId,authorId,text,imageUrls,statusTag,status,expiresAt,confirmsCount,outdatedCount,createdAt,campus:Campus(id,displayName,city),spot:Spot(id,name)")
+    .eq("status", "approved")
+    .gt("expiresAt", new Date().toISOString())
+    .order("createdAt", { ascending: false })
+    .limit(limit);
+
   if (error) throw error;
   return hydratePosts(supabase, normalizePosts(posts ?? []));
 }
@@ -108,6 +129,7 @@ function normalizePosts(posts: unknown[]): DbPost[] {
     const item = post as DbPost & { spot?: DbPost["spot"] | DbPost["spot"][] };
     return {
       ...item,
+      campus: Array.isArray(item.campus) ? item.campus[0] : item.campus,
       spot: Array.isArray(item.spot) ? item.spot[0] : item.spot
     };
   });
