@@ -125,6 +125,8 @@ docker compose up -d postgres
 - Netlify 站点已通过 API 写入 GitHub 仓库配置：`Reaper76689/world-digger`、分支 `master`。
 - Netlify 已生成 deploy key：`6a11c874793798257ef5561c`。
 - GitHub 端仍需在仓库 Settings -> Deploy keys 添加 Netlify public key；未添加前，云端构建会在 `preparing repo` 阶段失败，错误类似 `Host key verification failed` / `Could not read from remote repository`。
+- GitHub deploy key 添加后，云端构建可以完成，但若 `netlify.toml` 没有显式声明 `@netlify/plugin-nextjs`，Netlify API 触发的构建可能只上传 `.next` 静态产物，表现为生产首页 404 且 deploy summary 显示 `No functions deployed`。
+- 出现上述情况时，先恢复上一个含 `___netlify-server-handler` 的可用 deploy，再在 `netlify.toml` 添加 `[[plugins]] package = "@netlify/plugin-nextjs"` 后重新构建。
 
 ### 部署命令
 
@@ -153,6 +155,9 @@ npx.cmd --cache .\.npm-cache-netlify netlify deploy --prod --build
 [build]
 command = "npm run build"
 publish = ".next"
+
+[[plugins]]
+package = "@netlify/plugin-nextjs"
 ```
 
 Netlify 会自动使用 Next.js Runtime，把 App Router 页面、Route Handlers、SSR 路由转换成 Netlify Functions / Edge 相关产物。
