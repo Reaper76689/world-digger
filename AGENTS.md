@@ -36,7 +36,7 @@ Remove-Item "C:\path\to\file.txt"
 
 - 项目名：真探
 - 包名：`zhentan-campus-social`
-- 当前版本：v0.3
+- 当前版本：v0.4
 - 类型：面向河南高校的校园现场动态 Web App MVP
 - 主要目标：用户先搜索并选择学校/校区，再围绕固定校园点位发布文字和图片动态；内容进入审核队列，管理员通过后公开展示，并推送给正在浏览该校区的人
 - 默认本地访问地址：`http://localhost:3000`
@@ -57,14 +57,20 @@ Remove-Item "C:\path\to\file.txt"
 - 校验：Zod
 - 图片上传：可选 S3 兼容存储，未配置时使用本地 Data URL 原型模式
 
-## v0.3 业务形态
+## v0.4 业务形态
 
 - v0.3 已从通用地点社交调整为河南高校校园现场动态。
+- v0.4 继续聚焦“实时状态”，首页文案升级为食堂排队、图书馆空位、快递站拥挤等高频校园场景。
 - 校园候选数据位于 `lib/henan-campuses.ts`。
 - 选择 Campus 时，系统会创建或复用 Campus 记录，并生成默认 Spot。
 - 默认 Spot 包括：食堂、图书馆、教学楼、宿舍、操场、快递站、超市。
 - 普通用户当前不能自由创建 Spot。
 - 动态默认 24 小时后过期；过期后不删除数据库记录，但不再出现在实时流中。
+- 新增独立发布页：`app/campuses/[campusId]/publish/page.tsx`。
+- 新增全站最近动态接口：`app/api/posts/recent/route.ts`。
+- 新增动态反馈接口：`app/api/posts/[postId]/feedback/route.ts`，登录用户可标记“属实”或“已过时”。
+- `Post` 新增 `statusTag`、`confirmsCount`、`outdatedCount` 字段，用于展示现场状态与反馈计数。
+- 新增 `PostFeedback` 模型，限制同一用户对同一帖子只有一条反馈记录。
 
 ## 常用命令
 
@@ -103,6 +109,19 @@ docker compose up -d postgres
 - 本次构建日志：`https://app.netlify.com/projects/shitan-map-social-608/deploys/6a1074dc0389f9e481a72224`
 - 线上首页基础检查返回 HTTP `200`。
 
+### 2026-05-23 v0.4 部署尝试
+
+- 本地 `npm.cmd run build` 已通过，Next.js 识别到 15 个 app routes，其中包括：
+  - `app/api/posts/recent/route.ts`
+  - `app/api/posts/[postId]/feedback/route.ts`
+  - `app/campuses/[campusId]/publish/page.tsx`
+- 当前 Git 最新提交：`eaa63f3 0.4v优化上传`。
+- 标准部署命令在 Netlify Build 阶段通过，但在 `Uploading blobs to deploy store` 阶段失败：`fetch failed`。
+- `--no-build --dir .next --functions .netlify\functions-internal` 仍然卡在同一 blob 上传阶段。
+- `netlify deploy --trigger --prod` 不可用，因为该 Netlify 项目尚未配置 CI：CLI 返回 `Project not found. Please rerun "netlify link" and make sure that your project has CI configured.`
+- 尝试配置 CI 属于持久修改 Netlify 项目设置，需要用户明确授权后再执行。
+- 生产站点在尝试后仍可访问，基础检查返回 HTTP `200`，但 v0.4 尚未确认成功上线。
+
 ### 部署命令
 
 项目已经通过 `.netlify/state.json` 绑定到 Netlify 项目，`.netlify/` 已加入 `.gitignore`，不要提交该目录。
@@ -118,6 +137,9 @@ npx.cmd --cache .\.npm-cache-netlify netlify deploy --prod --build
 - `--build` 会显式触发 Netlify Build 和 Next.js Runtime。
 - 当前 Netlify CLI 会提示 `--build` 已是默认值，但显式保留更利于排障。
 - 不带 `--build` 时曾出现长时间无输出并超时的情况。
+- 如果卡在 blob 上传阶段，不要删除 `.netlify`、`.next` 或 blob 目录；这些是 Netlify Runtime 生成的预渲染/函数产物。
+- 不要用跳过 blob 产物的方式强行生产部署，因为可能破坏预渲染页面或 Next Runtime 行为。
+- 更稳妥的后续方案是让用户明确授权后，为站点配置 GitHub Continuous Deployment，再由 Netlify 云端从仓库构建。
 
 ### Netlify Next.js 配置
 
@@ -171,9 +193,10 @@ Netlify 线上运行通常需要在控制台手动配置：
 - `app/`：Next.js 页面和 API 路由
 - `app/page.tsx`：首页校园搜索入口和结果展示
 - `app/campuses/[campusId]/page.tsx`：校区详情页，包含点位、发布框和动态流
+- `app/campuses/[campusId]/publish/page.tsx`：v0.4 独立发布页，面向快速选择点位和现场状态
 - `app/admin/page.tsx`：审核后台
 - `app/login/page.tsx`：登录/注册页面
-- `app/api/`：登录、校园、点位、帖子、评论、审核、上传签名等接口
+- `app/api/`：登录、校园、点位、帖子、评论、反馈、审核、上传签名等接口
 - `components/`：前端组件，如登录面板、发布框、动态流
 - `lib/`：服务端工具，如认证、Supabase、Prisma、实时推送、校园解析、动态组装、校验
 - `types/`：前端共享类型
@@ -189,9 +212,11 @@ Netlify 线上运行通常需要在控制台手动配置：
 4. 校区详情页通过 `app/api/campuses/[campusId]/route.ts` 获取校园信息。
 5. 点位通过 `app/api/campuses/[campusId]/spots/route.ts` 获取。
 6. 动态通过 `app/api/campuses/[campusId]/posts/route.ts` 获取，只展示 `approved` 且未过期内容。
-7. 登录用户可发布动态，动态默认状态为 `pending`。
-8. 管理员在 `/admin` 审核帖子和回复。
-9. 审核通过后，`lib/realtime.ts` 通过 Socket.IO 向校园房间推送事件。
+7. 用户可通过校区页或 `/campuses/[campusId]/publish` 发布实时状态。
+8. v0.4 的 `submit_post` RPC 会把帖子直接写为 `approved`，并设置 24 小时过期时间。
+9. 用户可对非本人、未过期、已通过的帖子反馈“属实”或“已过时”。
+10. 管理员在 `/admin` 审核帖子和回复。
+11. 审核通过后，`lib/realtime.ts` 通过 Socket.IO 向校园房间推送事件。
 
 ## 数据模型
 
@@ -202,6 +227,7 @@ Prisma 中的主要模型：
 - `Campus`：校园/校区信息，包含学校名、校区名、城市、层次、办学属性、来源编码
 - `Spot`：校园内固定点位，如食堂、图书馆、教学楼等
 - `Post`：校园动态，关联 Campus 和 Spot，包含文字、图片数组、审核状态和过期时间
+- `PostFeedback`：用户对帖子状态的反馈，类型为 `confirmed` 或 `outdated`
 - `Comment`：帖子回复，包含文字和审核状态
 - `ModerationAction`：管理员审核行为记录
 
@@ -212,6 +238,7 @@ Prisma 中的主要模型：
 - `ContentStatus`：`pending`、`approved`、`rejected`、`hidden`
 - `ModerationTargetType`：`post`、`comment`、`user`
 - `ModerationActionType`：`approve`、`reject`、`hide`、`ban`
+- `PostFeedbackType`：`confirmed`、`outdated`
 
 ## 认证与权限
 
