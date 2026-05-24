@@ -1,6 +1,7 @@
 import { setAuthCookies } from "@/lib/auth";
 import { jsonError } from "@/lib/http";
-import { createSupabaseServerClient, createSupabaseUserClient } from "@/lib/supabase";
+import { prisma } from "@/lib/prisma";
+import { createSupabaseServerClient } from "@/lib/supabase";
 import { z } from "zod";
 
 const registerSchema = z
@@ -45,26 +46,45 @@ export async function POST(request: Request) {
       });
     }
 
-    const userClient = createSupabaseUserClient(data.session.access_token);
-    const { data: user, error: profileError } = await userClient
-      .from("User")
-      .upsert(
-        {
-          id: data.user.id,
+    const authUser = data.user;
+    const session = data.session;
+    const user = await prisma.$transaction(async (tx) => {
+      const savedUser = await tx.user.upsert({
+        where: { id: authUser.id },
+        update: {
           email,
           nickname: input.nickname,
           role: input.nickname === adminNickname ? "admin" : "user"
         },
-        { onConflict: "id" }
-      )
-      .select("id,email,nickname,avatarUrl,bio,status,role,createdAt,updatedAt")
-      .single();
+        create: {
+          id: authUser.id,
+          email,
+          nickname: input.nickname,
+          role: input.nickname === adminNickname ? "admin" : "user"
+        }
+      });
 
-    if (profileError || !user) {
-      return Response.json({ error: profileError?.message ?? "用户资料同步失败" }, { status: 500 });
-    }
+      await tx.loginAccount.upsert({
+        where: {
+          provider_account: {
+            provider: "email",
+            account: email
+          }
+        },
+        update: {
+          userId: savedUser.id
+        },
+        create: {
+          userId: savedUser.id,
+          provider: "email",
+          account: email
+        }
+      });
 
-    await setAuthCookies(data.session.access_token, data.session.refresh_token);
+      return savedUser;
+    });
+
+    await setAuthCookies(session.access_token, session.refresh_token);
 
     return Response.json({
       user,
