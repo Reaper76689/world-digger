@@ -1,4 +1,5 @@
 import { createSupabaseUserClient } from "@/lib/supabase";
+import { getUserReputations } from "@/lib/reputation";
 
 type DbUser = {
   id: string;
@@ -109,6 +110,7 @@ export async function hydratePosts(supabase: ReturnType<typeof createSupabaseUse
   }
 
   const userMap = new Map(allUsers.map((user) => [user.id, user]));
+  const reputationMap = await getUserReputations(allUsers.map((user) => user.id));
   const commentsByPost = new Map<string, DbComment[]>();
   for (const comment of (comments ?? []) as DbComment[]) {
     commentsByPost.set(comment.postId, [...(commentsByPost.get(comment.postId) ?? []), comment]);
@@ -116,7 +118,10 @@ export async function hydratePosts(supabase: ReturnType<typeof createSupabaseUse
 
   return posts.map((post) => ({
     ...post,
-    author: userMap.get(post.authorId) ?? { id: post.authorId, nickname: "未知用户", avatarUrl: null },
+    author: {
+      ...(userMap.get(post.authorId) ?? { id: post.authorId, nickname: "未知用户", avatarUrl: null }),
+      title: reputationMap.get(post.authorId)?.title ?? "新同学"
+    },
     comments: (commentsByPost.get(post.id) ?? []).map((comment) => ({
       ...comment,
       author: userMap.get(comment.authorId) ?? { id: comment.authorId, nickname: "未知用户", avatarUrl: null }

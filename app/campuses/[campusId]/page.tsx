@@ -327,7 +327,7 @@ function MyContentPanel({ mine, loading }: { mine: MineState; loading: boolean }
                 状态 · {post.statusTag} · {statusLabel(post.status)} · {post.spot?.name ?? "校内点位"} · {formatTime(post.createdAt)}
               </p>
               {post.text !== post.statusTag ? <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink/80">{post.text}</p> : null}
-              <p className="mt-2 text-xs text-ink/45">属实 {post.confirmsCount} · 已过时 {post.outdatedCount}</p>
+              <p className="mt-2 text-xs text-ink/45">属实 {post.confirmsCount} · 已变化 {post.outdatedCount}</p>
               <StatusNote status={post.status} reason={post.moderationReason} expiresAt={post.expiresAt} />
             </article>
           ))}

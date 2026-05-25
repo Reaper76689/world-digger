@@ -34,7 +34,9 @@ export function UserNav({ user, onUser }: { user: AuthUser | null; onUser: (user
         {user.role === "admin" ? <Shield className="h-4 w-4" /> : <UserRound className="h-4 w-4" />}
       </div>
       <div className="min-w-0">
-        <p className="truncate text-sm font-semibold">{user.nickname}</p>
+        <Link href={`/users/${user.id}`} className="block truncate text-sm font-semibold transition hover:text-jadeDark">
+          {user.nickname}
+        </Link>
         <p className="truncate text-xs text-ink/50">{user.role === "admin" ? "管理员" : user.email}</p>
       </div>
       <button onClick={logout} className="grid h-9 w-9 place-items-center rounded-md text-ink/55 transition hover:bg-ink/5 hover:text-ink" title="退出登录">

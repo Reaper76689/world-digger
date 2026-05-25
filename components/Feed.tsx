@@ -1,7 +1,8 @@
 "use client";
 
 import type { FeedPost } from "@/types/shitan";
-import { CheckCircle2, Clock3, MessageCircle, Send, TimerReset } from "lucide-react";
+import { CheckCircle2, Clock3, MessageCircle, Send, TimerReset, UserCircle2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 export function Feed({
@@ -50,14 +51,15 @@ function PostCard({
   const [text, setText] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [hasFeedback, setHasFeedback] = useState(false);
   const [counts, setCounts] = useState({
     confirmsCount: post.confirmsCount,
     outdatedCount: post.outdatedCount
   });
 
   async function feedback(type: "confirmed" | "outdated") {
-    if (!userReady || loading) {
-      setMessage(userReady ? "" : "登录后可以确认状态是否属实。");
+    if (!userReady || loading || hasFeedback) {
+      setMessage(userReady ? "" : "登录后可以确认状态是否属实或已变化。");
       return;
     }
 
@@ -79,6 +81,8 @@ function PostCard({
         confirmsCount: data.post.confirmsCount,
         outdatedCount: data.post.outdatedCount
       });
+      setHasFeedback(true);
+      setMessage("评价已记录，每条状态只能评价一次。");
     } catch {
       setMessage("操作失败，请检查网络后重试。");
     } finally {
@@ -126,6 +130,19 @@ function PostCard({
           <p className="mt-2 text-sm font-semibold text-ink">
             {post.campus?.displayName ?? "校园"} · {post.spot?.name ?? "校内点位"}
           </p>
+          <Link
+            href={`/users/${post.author.id}`}
+            className="mt-2 inline-flex max-w-full items-center gap-2 rounded-lg border border-ink/10 bg-stone px-2.5 py-1.5 text-xs font-semibold text-ink/65 transition hover:border-jade/35 hover:text-jadeDark"
+          >
+            {post.author.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={post.author.avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
+            ) : (
+              <UserCircle2 className="h-5 w-5 shrink-0" />
+            )}
+            <span className="truncate">{post.author.nickname}</span>
+            <span className="shrink-0 rounded-full bg-mint px-2 py-0.5 text-[11px] text-jadeDark">{post.author.title}</span>
+          </Link>
         </div>
         <p className="rounded-full bg-clay px-3 py-1 text-xs font-semibold text-ink/55">{formatExpiry(post.expiresAt)}</p>
       </header>
@@ -137,19 +154,19 @@ function PostCard({
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           onClick={() => feedback("confirmed")}
-          disabled={loading}
+          disabled={loading || hasFeedback}
           className="inline-flex h-9 items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50"
         >
           <CheckCircle2 className="h-4 w-4" />
-          属实 {counts.confirmsCount}
+          ✅ 属实 {counts.confirmsCount}
         </button>
         <button
           onClick={() => feedback("outdated")}
-          disabled={loading}
+          disabled={loading || hasFeedback}
           className="inline-flex h-9 items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
         >
           <TimerReset className="h-4 w-4" />
-          已过时 {counts.outdatedCount}
+          ⏰ 已变化 {counts.outdatedCount}
         </button>
       </div>
 

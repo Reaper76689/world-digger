@@ -33,6 +33,7 @@ export type FeedPost = {
     id: string;
     nickname: string;
     avatarUrl: string | null;
+    title: string;
   };
   comments: FeedComment[];
 };

@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { jsonError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { feedbackTypeSchema } from "@/lib/validators";
-import { PostFeedbackType } from "@prisma/client";
+import { Prisma, PostFeedbackType } from "@prisma/client";
 
 export async function POST(request: Request, { params }: { params: Promise<{ postId: string }> }) {
   try {
@@ -27,20 +27,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ pos
       return Response.json({ error: "自己的状态不需要自己确认" }, { status: 400 });
     }
 
-    await prisma.postFeedback.upsert({
-      where: {
-        postId_userId: {
+    try {
+      await prisma.postFeedback.create({
+        data: {
           postId,
-          userId: user.id
+          userId: user.id,
+          type
         }
-      },
-      update: { type },
-      create: {
-        postId,
-        userId: user.id,
-        type
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        return Response.json({ error: "你已经评价过这条状态了，不能重复评价。" }, { status: 409 });
       }
-    });
+      throw error;
+    }
 
     const [confirmsCount, outdatedCount] = await Promise.all([
       prisma.postFeedback.count({ where: { postId, type: "confirmed" } }),

@@ -22,7 +22,7 @@ export default function LoginPage() {
             <p className="inline-flex rounded-full bg-mint px-3 py-1 text-xs font-semibold text-jade">Supabase Auth</p>
             <h2 className="mt-4 text-4xl font-bold leading-tight">登录后发布校园实时状态</h2>
             <p className="mt-4 text-sm leading-7 text-ink/60">
-              账号用于发布状态、补充现场情况，以及点击“属实”和“已过时”。实时状态会直接公开，24 小时后自动从前台隐藏。
+              账号用于发布状态、补充现场情况，以及点击“属实”和“已变化”。实时状态会直接公开，24 小时后自动从前台隐藏。
             </p>
           </div>
         </section>
