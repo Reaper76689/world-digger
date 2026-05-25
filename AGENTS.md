@@ -36,7 +36,7 @@ Remove-Item "C:\path\to\file.txt"
 
 - 项目名：真探
 - 包名：`zhentan-campus-social`
-- 当前版本：v0.4
+- 当前版本：v0.6
 - 类型：面向河南高校的校园现场动态 Web App MVP
 - 主要目标：用户先搜索并选择学校/校区，再围绕固定校园点位发布文字和图片动态；内容进入审核队列，管理员通过后公开展示，并推送给正在浏览该校区的人
 - 默认本地访问地址：`http://localhost:3000`
@@ -57,7 +57,7 @@ Remove-Item "C:\path\to\file.txt"
 - 校验：Zod
 - 图片上传：可选 S3 兼容存储，未配置时使用本地 Data URL 原型模式
 
-## v0.4 业务形态
+## v0.6 业务形态
 
 - v0.3 已从通用地点社交调整为河南高校校园现场动态。
 - v0.4 继续聚焦“实时状态”，首页文案升级为食堂排队、图书馆空位、快递站拥挤等高频校园场景。
@@ -71,6 +71,10 @@ Remove-Item "C:\path\to\file.txt"
 - 新增动态反馈接口：`app/api/posts/[postId]/feedback/route.ts`，登录用户可标记“属实”或“已过时”。
 - `Post` 新增 `statusTag`、`confirmsCount`、`outdatedCount` 字段，用于展示现场状态与反馈计数。
 - 新增 `PostFeedback` 模型，限制同一用户对同一帖子只有一条反馈记录。
+- v0.5/v0.6 新增用户可信度/头衔能力，核心逻辑在 `lib/reputation.ts`。
+- 新增用户主页：`app/users/[userId]/page.tsx`，展示发布数、属实数、可信率、头衔和最近状态。
+- 新增点位状态提示组件：`components/SpotStatusPrompt.tsx`，用于提示某个点位多久未更新，并支持一键快速更新状态。
+- `lib/feed.ts` 会为动态作者补充声誉头衔，最近动态 API 已返回 `author.title`。
 
 ## 常用命令
 
@@ -128,6 +132,20 @@ docker compose up -d postgres
 - GitHub deploy key 添加后，云端构建可以完成，但若 `netlify.toml` 没有显式声明 `@netlify/plugin-nextjs`，Netlify API 触发的构建可能只上传 `.next` 静态产物，表现为生产首页 404 且 deploy summary 显示 `No functions deployed`。
 - 出现上述情况时，先恢复上一个含 `___netlify-server-handler` 的可用 deploy，再在 `netlify.toml` 添加 `[[plugins]] package = "@netlify/plugin-nextjs"` 后重新构建。
 
+### 2026-05-25 v0.6 部署与数据库同步
+
+- 本地最新版本提交：`cb2c932 0.6v`，已推送到 `origin/master`。
+- Netlify 云端构建成功，deploy id：`6a14448524a34e68400566fb`。
+- 本次 deploy 的 commit ref：`cb2c93238dc868088b6e5549c5699bb42ba43c8b`。
+- `plugin_state` 为 `success`，并部署了 `___netlify-server-handler`，说明 Next.js Runtime 已正确启用。
+- 线上检查：
+  - 首页 `/` 返回 HTTP `200`
+  - `/api/posts/recent` 返回 HTTP `200`
+  - `/api/campuses/search?q=` 返回 HTTP `200`
+- `prisma migrate status` 显示若干历史迁移未登记为已应用，但其中 `20260522030000_campus_spot_refactor` 含删帖、删评论、删 Campus 等破坏性 SQL；不要直接执行全量 `prisma migrate deploy`。
+- 线上库曾缺少 `PostFeedback` 表，已用幂等 SQL 单独补齐 `PostFeedbackType`、`PostFeedback` 表、索引和 RLS 策略，并确认 `prisma.postFeedback.count()` 可正常访问。
+- v0.6 的 `20260524050000_reputation_profiles` 仅包含 `drop policy if exists "Users can update own post feedback" on "PostFeedback";`，同步时应避免运行旧的破坏性迁移。
+
 ### 部署命令
 
 项目已经通过 `.netlify/state.json` 绑定到 Netlify 项目，`.netlify/` 已加入 `.gitignore`，不要提交该目录。
@@ -153,7 +171,7 @@ npx.cmd --cache .\.npm-cache-netlify netlify deploy --prod --build
 
 ```toml
 [build]
-command = "npm run build"
+command = "npx prisma generate && npm run build"
 publish = ".next"
 
 [[plugins]]
@@ -203,11 +221,12 @@ Netlify 线上运行通常需要在控制台手动配置：
 - `app/page.tsx`：首页校园搜索入口和结果展示
 - `app/campuses/[campusId]/page.tsx`：校区详情页，包含点位、发布框和动态流
 - `app/campuses/[campusId]/publish/page.tsx`：v0.4 独立发布页，面向快速选择点位和现场状态
+- `app/users/[userId]/page.tsx`：v0.6 用户主页，展示可信度、头衔和最近发布
 - `app/admin/page.tsx`：审核后台
 - `app/login/page.tsx`：登录/注册页面
 - `app/api/`：登录、校园、点位、帖子、评论、反馈、审核、上传签名等接口
-- `components/`：前端组件，如登录面板、发布框、动态流
-- `lib/`：服务端工具，如认证、Supabase、Prisma、实时推送、校园解析、动态组装、校验
+- `components/`：前端组件，如登录面板、发布框、动态流、点位状态提示
+- `lib/`：服务端工具，如认证、Supabase、Prisma、实时推送、校园解析、动态组装、声誉计算、校验
 - `types/`：前端共享类型
 - `prisma/schema.prisma`：Prisma 数据模型
 - `prisma/migrations/`：数据库迁移，包含 Supabase Auth、RLS、校园/点位重构等变更
