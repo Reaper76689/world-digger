@@ -2,6 +2,7 @@
 
 import { Feed } from "@/components/Feed";
 import { LoginPanel } from "@/components/LoginPanel";
+import { SpotStatusPrompt } from "@/components/SpotStatusPrompt";
 import type { FeedPost, UserCommentStatusItem, UserContentStatus, UserPostStatusItem } from "@/types/shitan";
 import { ArrowLeft, ArrowUpRight, Clock3, GraduationCap, Loader2, MessageCircle, PlusCircle, Radio, School, ShieldCheck } from "lucide-react";
 import Link from "next/link";
@@ -55,6 +56,7 @@ export default function CampusPage({ params }: { params: Promise<{ campusId: str
     if (typeof window === "undefined") return null;
     return io({ autoConnect: true });
   }, []);
+  const activeSpot = useMemo(() => spots.find((spot) => spot.id === activeSpotId) ?? null, [activeSpotId, spots]);
 
   useEffect(() => {
     params.then(({ campusId: id }) => setCampusId(id));
@@ -179,6 +181,12 @@ export default function CampusPage({ params }: { params: Promise<{ campusId: str
     await loadMine();
   }
 
+  async function handleSpotStatusUpdated(post: FeedPost) {
+    setPosts((current) => [post, ...current.filter((item) => item.id !== post.id)]);
+    setNotice("已更新，感谢你帮助同学了解现场情况。");
+    if (user) await loadMine();
+  }
+
   if (loading) {
     return (
       <main className="grid min-h-screen place-items-center">
@@ -293,6 +301,15 @@ export default function CampusPage({ params }: { params: Promise<{ campusId: str
                 ))}
               </div>
             </div>
+            {activeSpot ? (
+              <SpotStatusPrompt
+                campusId={campus.id}
+                spot={activeSpot}
+                posts={posts}
+                userReady={Boolean(user)}
+                onUpdated={handleSpotStatusUpdated}
+              />
+            ) : null}
             <Feed posts={posts} userReady={Boolean(user)} onCommentPending={handleCommentPending} />
           </div>
         </section>
