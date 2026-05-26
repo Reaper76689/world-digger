@@ -2,7 +2,7 @@
 
 import { LoginPanel } from "@/components/LoginPanel";
 import { PostComposer } from "@/components/PostComposer";
-import { ArrowLeft, GraduationCap, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Loader2, Radar, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -68,39 +68,39 @@ export default function CampusPublishPage({ params }: { params: Promise<{ campus
         fetchJson<{ spots?: Spot[] }>(`/api/campuses/${id}/spots`)
       ]);
       if (!campusData.campus) {
-        setLoadError("没有找到这个校区。");
+        setLoadError("没有扫到这个校区。");
         return;
       }
 
       setCampus(campusData.campus);
       setSpots(spotData.spots ?? []);
     } catch {
-      setLoadError("发布页加载失败，请返回校区后重试。");
+      setLoadError("发布雷达加载失败，返回校区后再试一次。");
     } finally {
       setLoading(false);
     }
   }
 
   async function handlePublished() {
-    setNotice("实时状态已发布，24 小时后自动从前台隐藏。");
+    setNotice("实时状态已发布，24 小时后会从前台自然淡出。");
     router.push(`/campuses/${campusId}`);
   }
 
   if (loading) {
     return (
-      <main className="grid min-h-screen place-items-center">
-        <Loader2 className="h-8 w-8 animate-spin text-jade" />
+      <main className="app-shell grid place-items-center">
+        <Loader2 className="h-8 w-8 animate-spin text-cyan-200" />
       </main>
     );
   }
 
   if (loadError || !campus) {
     return (
-      <main className="grid min-h-screen place-items-center px-4">
-        <section className="max-w-md rounded-xl border border-white/70 bg-white p-6 text-center shadow-soft">
-          <p className="text-lg font-bold">{loadError || "发布页加载失败"}</p>
-          <Link href={campusId ? `/campuses/${campusId}` : "/"} className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-ink px-4 text-sm font-semibold text-white hover:bg-jade">
-            返回校区
+      <main className="app-shell grid place-items-center px-4">
+        <section className="glass-card max-w-md rounded-[2rem] p-6 text-center">
+          <p className="text-lg font-bold text-white">{loadError || "发布页加载失败"}</p>
+          <Link href={campusId ? `/campuses/${campusId}` : "/"} className="mt-4 inline-flex h-11 items-center justify-center rounded-2xl bg-cyan-300 px-4 text-sm font-bold text-slate-950 hover:bg-cyan-200">
+            回到校区
           </Link>
         </section>
       </main>
@@ -108,26 +108,26 @@ export default function CampusPublishPage({ params }: { params: Promise<{ campus
   }
 
   return (
-    <main className="min-h-screen">
+    <main className="app-shell">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-5 sm:px-6 lg:py-7">
-        <header className="flex flex-col gap-4 rounded-xl border border-white/70 bg-white/80 p-4 shadow-soft backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <header className="glass-panel flex flex-col gap-4 rounded-[2rem] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <Link href={`/campuses/${campus.id}`} className="grid h-11 w-11 place-items-center rounded-lg border border-ink/10 bg-white text-ink hover:text-jade" title="返回校区">
+            <Link href={`/campuses/${campus.id}`} className="grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-white/8 text-slate-300 transition hover:text-cyan-200" title="回到校区">
               <ArrowLeft className="h-5 w-5" />
             </Link>
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-ink text-white">
-              <GraduationCap className="h-6 w-6" />
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cyan-300/10 text-cyan-200 ring-1 ring-cyan-200/20">
+              <Radar className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold sm:text-3xl">发布实时状态</h1>
-              <p className="text-sm text-ink/55">{campus.displayName}</p>
+              <h1 className="text-2xl font-bold text-white sm:text-3xl">同步现场状态</h1>
+              <p className="text-sm text-slate-400">{campus.displayName}</p>
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             {user?.role === "admin" ? (
-              <Link href="/admin" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-ink/10 bg-white px-4 text-sm font-semibold text-ink shadow-sm hover:text-jade">
+              <Link href="/admin" className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-4 text-sm font-semibold text-slate-100 transition hover:text-cyan-200">
                 <ShieldCheck className="h-4 w-4" />
-                审核后台
+                审核中枢
               </Link>
             ) : null}
             <LoginPanel user={user} onUser={setUser} />
@@ -136,7 +136,7 @@ export default function CampusPublishPage({ params }: { params: Promise<{ campus
 
         <PostComposer campusId={campus.id} spots={spots} disabled={!user} onPublished={handlePublished} />
 
-        {notice ? <p className="rounded-xl bg-mint p-3 text-sm font-medium text-jadeDark">{notice}</p> : null}
+        {notice ? <p className="rounded-2xl border border-cyan-200/20 bg-cyan-300/10 p-3 text-sm font-medium text-cyan-100">{notice}</p> : null}
       </div>
     </main>
   );

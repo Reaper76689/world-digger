@@ -1,10 +1,11 @@
 "use client";
 
 import { LoginPanel } from "@/components/LoginPanel";
-import { ArrowUpRight, GraduationCap, History, Loader2, Radio, School, Search, ShieldCheck, Sparkles } from "lucide-react";
+import type { FeedPost } from "@/types/shitan";
+import { Activity, ArrowUpRight, Flame, Gauge, History, Loader2, MapPin, Radar, School, Search, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type User = {
   id: string;
@@ -28,12 +29,37 @@ export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CampusCandidate[]>([]);
+  const [recentPosts, setRecentPosts] = useState<FeedPost[]>([]);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [searching, setSearching] = useState(false);
   const [openingCampus, setOpeningCampus] = useState("");
   const [notice, setNotice] = useState("");
   const router = useRouter();
   const historyKey = user?.id ? `zhentan-search-history:${user.id}` : "zhentan-search-history:guest";
+
+  const radarStats = useMemo(() => {
+    const hourAgo = Date.now() - 60 * 60 * 1000;
+    const hotPosts = recentPosts.filter((post) => new Date(post.createdAt).getTime() >= hourAgo);
+    const spotCounts = new Map<string, number>();
+    const campusCounts = new Map<string, number>();
+
+    for (const post of hotPosts) {
+      const spotName = post.spot?.name ?? "校内点位";
+      const campusName = post.campus?.displayName ?? "附近校园";
+      spotCounts.set(spotName, (spotCounts.get(spotName) ?? 0) + 1);
+      campusCounts.set(campusName, (campusCounts.get(campusName) ?? 0) + 1);
+    }
+
+    const hotSpots = [...spotCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
+    const hotCampus = [...campusCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+
+    return {
+      total: recentPosts.length,
+      lastHour: hotPosts.length,
+      hotSpots,
+      hotCampus: hotCampus ? `${hotCampus[0]} · ${hotCampus[1]} 条波动` : "等待第一条校园信号"
+    };
+  }, [recentPosts]);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -44,6 +70,10 @@ export default function HomePage() {
 
   useEffect(() => {
     search("");
+    fetch("/api/posts/recent?limit=24")
+      .then((response) => response.json())
+      .then((data) => setRecentPosts(data.posts ?? []))
+      .catch(() => setRecentPosts([]));
   }, []);
 
   useEffect(() => {
@@ -80,10 +110,10 @@ export default function HomePage() {
       setResults(campuses);
       rememberSearch(keyword);
       if (keyword && campuses.length === 0) {
-        setNotice("没有找到匹配校区。可以换学校名、城市或校区名试试。");
+        setNotice("这片雷达暂时没有扫到匹配校区，换个学校、城市或校区名再试试。");
       }
     } catch {
-      setNotice("校园搜索暂时不可用，请稍后再试。");
+      setNotice("校园雷达短暂离线，稍后再扫一次。");
     } finally {
       setSearching(false);
     }
@@ -102,143 +132,176 @@ export default function HomePage() {
       const data = await resolved.json();
 
       if (!resolved.ok || !data.campus?.id) {
-        setNotice(data.error ?? "校区打开失败，请换一个结果试试。");
+        setNotice("这个校区信号暂时接不上，换一个结果试试。");
         return;
       }
 
       router.push(`/campuses/${data.campus.id}`);
     } catch {
-      setNotice("校区打开失败，请检查网络后重试。");
+      setNotice("进入校区失败，请检查网络后再试。");
     } finally {
       setOpeningCampus("");
     }
   }
 
   return (
-    <main className="min-h-screen">
+    <main className="app-shell">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:py-7">
-        <header className="flex flex-col gap-4 rounded-xl border border-white/70 bg-white/80 p-4 shadow-soft backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <header className="glass-panel flex flex-col gap-4 rounded-[2rem] p-4 sm:flex-row sm:items-center sm:justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-ink text-white shadow-lg shadow-ink/15">
-              <GraduationCap className="h-6 w-6" />
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cyan-300/15 text-cyan-200 ring-1 ring-cyan-200/25">
+              <Radar className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-normal">真探</h1>
-              <p className="text-sm text-ink/55">河南高校实时状态共享，先从一个校区开始。</p>
+              <h1 className="text-3xl font-bold tracking-normal text-white">真探</h1>
+              <p className="text-sm text-slate-300">校园实时状态网络</p>
             </div>
           </Link>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             {user?.role === "admin" ? (
-              <Link
-                href="/admin"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-ink/10 bg-white px-4 text-sm font-semibold text-ink shadow-sm transition hover:border-jade/40 hover:text-jade"
-              >
+              <Link href="/admin" className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-4 text-sm font-semibold text-slate-100 transition hover:border-cyan-300/40 hover:text-cyan-200">
                 <ShieldCheck className="h-4 w-4" />
-                审核后台
+                审核中枢
               </Link>
             ) : null}
             <LoginPanel user={user} onUser={setUser} />
           </div>
         </header>
 
-        <section className="overflow-hidden rounded-xl border border-white/70 bg-white shadow-soft">
-          <div>
-            <div className="bg-[linear-gradient(135deg,#18211f_0%,#1e8a68_62%,#f4c95d_100%)] px-5 py-8 text-white sm:px-8 lg:min-h-[390px]">
-              <p className="inline-flex w-fit items-center gap-2 rounded-full bg-white/16 px-3 py-1 text-xs font-semibold backdrop-blur">
-              <Radio className="h-3.5 w-3.5" />
-              v0.4 实时状态平台
-            </p>
-              <h2 className="mt-5 max-w-2xl text-4xl font-bold leading-tight sm:text-5xl">食堂排不排队，图书馆有没有座，一眼知道。</h2>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-white/78">
-              真探现在聚焦校园现场状态：选择校区和点位，点击“人少 / 一般 / 爆满 / 有空位”，3 秒发布，24 小时自动过期。
-            </p>
-              <div className="mt-6 grid max-w-xl grid-cols-2 gap-3 sm:grid-cols-4">
-              {["食堂排队", "图书馆空位", "快递站拥挤", "教学楼状态"].map((item) => (
-                <div key={item} className="rounded-lg border border-white/20 bg-white/14 px-3 py-3 text-sm font-semibold backdrop-blur">
-                  {item}
+        <section className="glass-panel relative overflow-hidden rounded-[2.5rem] p-5 sm:p-8 lg:p-10">
+          <div className="pointer-events-none absolute right-[-7rem] top-[-8rem] h-80 w-80 rounded-full border border-cyan-200/20" />
+          <div className="pointer-events-none absolute right-[-3rem] top-[-4rem] h-48 w-48 rounded-full border border-cyan-200/30" />
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-center">
+            <div>
+              <p className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-100">
+                <span className="status-dot h-2 w-2 rounded-full bg-cyan-300 text-cyan-300" />
+                v0.7 校园实时雷达
+              </p>
+              <h2 className="mt-6 max-w-3xl text-4xl font-bold leading-tight text-white sm:text-6xl">
+                看见校园正在发生什么。
+              </h2>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300">
+                真探不是传统社交平台。它只捕捉此刻有用的校园状态：食堂排队、图书馆空位、快递站拥挤、教学楼动静。每一次更新，都是给附近同学的一次实时提醒。
+              </p>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <div className="flex min-h-14 flex-1 items-center gap-3 rounded-3xl border border-white/10 bg-slate-950/45 px-4">
+                  <Search className="h-5 w-5 shrink-0 text-cyan-200" />
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") search();
+                    }}
+                    placeholder="搜索学校、校区或城市"
+                    className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+                  />
                 </div>
-              ))}
+                <button
+                  onClick={() => search()}
+                  disabled={searching}
+                  className="inline-flex h-14 items-center justify-center gap-2 rounded-3xl bg-cyan-300 px-6 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:-translate-y-0.5 hover:bg-cyan-200 disabled:translate-y-0 disabled:opacity-50"
+                >
+                  {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radar className="h-4 w-4" />}
+                  扫描校区
+                </button>
+              </div>
+              {notice ? <p className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">{notice}</p> : null}
+            </div>
+
+            <div className="glass-card rounded-[2rem] p-4">
+              <div className="rounded-[1.5rem] border border-cyan-200/15 bg-slate-950/40 p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">Live Pulse</p>
+                    <p className="mt-2 text-3xl font-bold text-white">{radarStats.lastHour}</p>
+                    <p className="text-sm text-slate-400">近 1 小时校园状态更新</p>
+                  </div>
+                  <div className="grid h-20 w-20 place-items-center rounded-full border border-cyan-200/20 bg-cyan-300/10">
+                    <Activity className="h-8 w-8 text-cyan-200" />
+                  </div>
+                </div>
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <Metric icon={<Sparkles className="h-4 w-4" />} label="最近更新" value={`${radarStats.total} 条`} />
+                  <Metric icon={<Flame className="h-4 w-4" />} label="当前热度" value={radarStats.lastHour > 8 ? "高" : radarStats.lastHour > 2 ? "升温" : "安静"} />
+                </div>
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+                    <Gauge className="h-4 w-4 text-cyan-200" />
+                    {radarStats.hotCampus}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="space-y-5">
-          <section className="rounded-xl border border-white/70 bg-white p-5 shadow-soft">
-            <p className="inline-flex items-center gap-2 rounded-full bg-mint px-3 py-1 text-xs font-semibold text-jade">
-              <Sparkles className="h-3.5 w-3.5" />
-              选择校区
-            </p>
-            <h2 className="mt-3 text-2xl font-bold">进入你的校园实时页</h2>
-            <p className="mt-2 text-sm leading-6 text-ink/55">食堂排队、图书馆空位、快递站拥挤程度，都用一个状态按钮快速发布。</p>
+        <section className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+          <aside className="space-y-4">
+            <section className="glass-card rounded-[2rem] p-4">
+              <div className="flex items-center gap-2">
+                <History className="h-5 w-5 text-cyan-200" />
+                <h2 className="font-bold text-white">最近扫描</h2>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {searchHistory.length > 0 ? (
+                  searchHistory.map((keyword) => (
+                    <button
+                      key={keyword}
+                      onClick={() => {
+                        setQuery(keyword);
+                        search(keyword);
+                      }}
+                      className="rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1.5 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/50 hover:bg-cyan-300/18"
+                    >
+                      {keyword}
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-sm leading-6 text-slate-400">搜索一次校区后，这里会保留你的雷达入口。</p>
+                )}
+              </div>
+            </section>
 
-            <div className="mt-5 flex gap-2 rounded-lg border border-ink/10 bg-stone px-2 py-2 focus-within:border-jade">
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") search();
-                }}
-                placeholder="搜索学校、校区或城市"
-                className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none"
-              />
-              <button
-                onClick={() => search()}
-                disabled={searching}
-                className="grid h-10 w-10 place-items-center rounded-md bg-jade text-white shadow-sm transition hover:bg-jadeDark disabled:opacity-50"
-                title="搜索校区"
-              >
-                {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              </button>
-            </div>
+            <section className="glass-card rounded-[2rem] p-4">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-cyan-200" />
+                <h2 className="font-bold text-white">热门地点</h2>
+              </div>
+              <div className="mt-4 space-y-2">
+                {radarStats.hotSpots.length > 0 ? (
+                  radarStats.hotSpots.map(([spot, count]) => (
+                    <div key={spot} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                      <span className="text-slate-200">{spot}</span>
+                      <span className="font-semibold text-cyan-200">{count} 条</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm leading-6 text-slate-400">还没有足够的实时波动，等同学们发出第一批信号。</p>
+                )}
+              </div>
+            </section>
+          </aside>
 
-            {notice ? <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{notice}</p> : null}
-          </section>
-
-          <section className="rounded-xl border border-white/70 bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-2">
-              <History className="h-5 w-5 text-jade" />
-              <h2 className="font-bold">历史搜索</h2>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {searchHistory.length > 0 ? (
-                searchHistory.map((keyword) => (
-                  <button
-                    key={keyword}
-                    onClick={() => {
-                      setQuery(keyword);
-                      search(keyword);
-                    }}
-                    className="rounded-full border border-jade/15 bg-mint px-3 py-1.5 text-sm font-semibold text-jade transition hover:border-jade/45 hover:bg-white"
-                  >
-                    {keyword}
-                  </button>
-                ))
-              ) : (
-                <p className="text-sm text-ink/55">搜索学校、校区或城市后，会在这里保留最近记录。</p>
-              )}
-            </div>
-          </section>
-
-          <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {results.map((campus) => (
+          <section className="grid content-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {results.map((campus, index) => (
               <button
                 key={campus.sourceCode}
                 onClick={() => openCampus(campus)}
                 disabled={Boolean(openingCampus)}
-                className="group h-full w-full rounded-xl border border-ink/10 bg-white p-4 text-left shadow-sm transition hover:border-jade/45 hover:shadow-md disabled:opacity-60"
+                className="glass-card float-card fade-in h-full w-full rounded-[2rem] p-4 text-left disabled:opacity-60"
+                style={{ animationDelay: `${index * 45}ms` }}
               >
                 <div className="flex gap-3">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-mint text-jade">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-cyan-300/10 text-cyan-200 ring-1 ring-cyan-200/20">
                     {openingCampus === campus.sourceCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <School className="h-4 w-4" />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{campus.displayName}</p>
-                    <p className="mt-1 text-sm leading-5 text-ink/55">
+                    <p className="truncate font-semibold text-white">{campus.displayName}</p>
+                    <p className="mt-1 text-sm leading-5 text-slate-400">
                       {campus.city} · {campus.level} · {campus.ownership}
                     </p>
-                    <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-jade">
-                      进入校区
+                    <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-cyan-200">
+                      进入校园雷达
                       <ArrowUpRight className="h-3.5 w-3.5" />
                     </span>
                   </div>
@@ -249,5 +312,17 @@ export default function HomePage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+      <p className="flex items-center gap-2 text-xs text-slate-400">
+        <span className="text-cyan-200">{icon}</span>
+        {label}
+      </p>
+      <p className="mt-1 text-lg font-bold text-white">{value}</p>
+    </div>
   );
 }

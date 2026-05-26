@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { createSupabaseServerClient } from "@/lib/supabase";
 
 export type UserReputation = {
   userId: string;
@@ -47,24 +48,9 @@ export async function getUserReputations(userIds: string[]) {
     return reputations;
   }
 
-  const posts = await prisma.post.findMany({
-    where: {
-      authorId: { in: uniqueUserIds },
-      status: "approved"
-    },
-    select: {
-      authorId: true,
-      confirmsCount: true,
-      outdatedCount: true,
-      spot: {
-        select: {
-          name: true
-        }
-      }
-    }
-  });
-
+  const posts = await getApprovedPostsForReputation(uniqueUserIds);
   const postsByUser = new Map<string, ReputationPost[]>();
+
   for (const post of posts) {
     postsByUser.set(post.authorId, [...(postsByUser.get(post.authorId) ?? []), post]);
   }
@@ -74,6 +60,43 @@ export async function getUserReputations(userIds: string[]) {
   }
 
   return reputations;
+}
+
+async function getApprovedPostsForReputation(userIds: string[]) {
+  try {
+    return await prisma.post.findMany({
+      where: {
+        authorId: { in: userIds },
+        status: "approved"
+      },
+      select: {
+        authorId: true,
+        confirmsCount: true,
+        outdatedCount: true,
+        spot: {
+          select: {
+            name: true
+          }
+        }
+      }
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV === "production" && !isPrismaTlsError(error)) {
+      throw error;
+    }
+
+    const { data, error: supabaseError } = await createSupabaseServerClient()
+      .from("Post")
+      .select("authorId,confirmsCount,outdatedCount,spot:Spot(name)")
+      .in("authorId", userIds)
+      .eq("status", "approved");
+
+    if (supabaseError) {
+      throw supabaseError;
+    }
+
+    return normalizePosts(data ?? []);
+  }
 }
 
 function buildReputation(userId: string, posts: ReputationPost[]): UserReputation {
@@ -133,6 +156,21 @@ function sumConfirmedBySpot(posts: ReputationPost[], keywords: string[]) {
     const spotName = post.spot?.name ?? "";
     return keywords.some((keyword) => spotName.includes(keyword)) ? total + post.confirmsCount : total;
   }, 0);
+}
+
+function normalizePosts(posts: unknown[]): ReputationPost[] {
+  return posts.map((post) => {
+    const item = post as ReputationPost & { spot?: ReputationPost["spot"] | ReputationPost["spot"][] };
+    return {
+      ...item,
+      spot: Array.isArray(item.spot) ? item.spot[0] : item.spot
+    };
+  });
+}
+
+function isPrismaTlsError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("Error opening a TLS connection");
 }
 
 export function formatTrustRate(rate: number | null) {

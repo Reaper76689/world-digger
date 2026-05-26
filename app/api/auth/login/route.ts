@@ -1,6 +1,6 @@
 import { setAuthCookies } from "@/lib/auth";
+import { syncAuthProfile } from "@/lib/auth-profile";
 import { jsonError } from "@/lib/http";
-import { prisma } from "@/lib/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase";
 import { z } from "zod";
 
@@ -28,42 +28,13 @@ export async function POST(request: Request) {
     const session = data.session;
     const nickname = String(authUser.user_metadata?.nickname || email.split("@")[0]);
     const loggedInAt = new Date();
-    const user = await prisma.$transaction(async (tx) => {
-      const savedUser = await tx.user.upsert({
-        where: { id: authUser.id },
-        update: {
-          email,
-          nickname,
-          role: nickname === adminNickname ? "admin" : "user"
-        },
-        create: {
-          id: authUser.id,
-          email,
-          nickname,
-          role: nickname === adminNickname ? "admin" : "user"
-        }
-      });
-
-      await tx.loginAccount.upsert({
-        where: {
-          provider_account: {
-            provider: "email",
-            account: email
-          }
-        },
-        update: {
-          userId: savedUser.id,
-          lastLoginAt: loggedInAt
-        },
-        create: {
-          userId: savedUser.id,
-          provider: "email",
-          account: email,
-          lastLoginAt: loggedInAt
-        }
-      });
-
-      return savedUser;
+    const user = await syncAuthProfile({
+      authUser,
+      email,
+      nickname,
+      accessToken: session.access_token,
+      adminNickname,
+      lastLoginAt: loggedInAt
     });
 
     await setAuthCookies(session.access_token, session.refresh_token);

@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "真探",
-  description: "河南高校校园现场动态应用"
+  description: "校园实时状态网络"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

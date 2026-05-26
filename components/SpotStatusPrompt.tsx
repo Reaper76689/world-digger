@@ -11,11 +11,11 @@ type Spot = {
 
 type StatusTag = "人少" | "一般" | "爆满" | "有空位";
 
-const STATUS_OPTIONS: Array<{ tag: StatusTag; icon: string; className: string }> = [
-  { tag: "人少", icon: "🟢", className: "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100" },
-  { tag: "一般", icon: "🟡", className: "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" },
-  { tag: "爆满", icon: "🔴", className: "border-red-200 bg-red-50 text-red-700 hover:bg-red-100" },
-  { tag: "有空位", icon: "🔵", className: "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100" }
+const STATUS_OPTIONS: Array<{ tag: StatusTag; dot: string; className: string }> = [
+  { tag: "人少", dot: "bg-emerald-300 text-emerald-300", className: "border-emerald-300/30 bg-emerald-300/10 text-emerald-100 hover:bg-emerald-300/16" },
+  { tag: "一般", dot: "bg-amber-300 text-amber-300", className: "border-amber-300/30 bg-amber-300/10 text-amber-100 hover:bg-amber-300/16" },
+  { tag: "爆满", dot: "bg-rose-300 text-rose-300", className: "border-rose-300/30 bg-rose-300/10 text-rose-100 hover:bg-rose-300/16" },
+  { tag: "有空位", dot: "bg-sky-300 text-sky-300", className: "border-sky-300/30 bg-sky-300/10 text-sky-100 hover:bg-sky-300/16" }
 ];
 
 export function SpotStatusPrompt({
@@ -38,7 +38,7 @@ export function SpotStatusPrompt({
 
   async function quickUpdate(statusTag: StatusTag) {
     if (!userReady) {
-      setMessage("登录后可以 1 次点击更新现场状态。");
+      setMessage("登录后可以一键校准这个点位的现场状态。");
       return;
     }
 
@@ -54,45 +54,45 @@ export function SpotStatusPrompt({
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage(data.error ?? "更新失败，请稍后再试。");
+        setMessage("这次校准没有同步成功，稍后再试。");
         return;
       }
 
-      setMessage("已更新，感谢你帮助同学了解现场情况。");
+      setMessage("你刚刚帮助了附近同学，状态已经刷新。");
       await onUpdated(data.post);
     } catch {
-      setMessage("更新失败，请检查网络后再试。");
+      setMessage("网络信号不稳，稍后再更新一次。");
     } finally {
       setSubmittingTag(null);
     }
   }
 
   return (
-    <section className="rounded-xl border border-jade/15 bg-white p-4 shadow-soft sm:p-5">
+    <section className="glass-card rounded-[2rem] p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="inline-flex items-center gap-2 rounded-full bg-mint px-3 py-1 text-xs font-semibold text-jadeDark">
+          <p className="inline-flex items-center gap-2 rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-100">
             <MapPin className="h-3.5 w-3.5" />
             {spot.name}
           </p>
-          <h2 className="mt-3 text-xl font-bold sm:text-2xl">{statusSummary.headline}</h2>
-          <p className="mt-1 text-sm leading-6 text-ink/58">{statusSummary.prompt}</p>
+          <h2 className="mt-3 text-xl font-bold text-white sm:text-2xl">{statusSummary.headline}</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-400">{statusSummary.prompt}</p>
         </div>
         <FreshnessBadge label={statusSummary.freshnessLabel} level={statusSummary.level} />
       </div>
 
-      <div className="mt-4 grid gap-3 rounded-lg bg-stone p-3 sm:grid-cols-[1fr_auto] sm:items-center">
+      <div className="mt-4 grid gap-3 rounded-3xl border border-white/10 bg-slate-950/35 p-3 sm:grid-cols-[1fr_auto] sm:items-center">
         <div>
-          <p className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <Clock3 className="h-4 w-4 text-jade" />
+          <p className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+            <Clock3 className="h-4 w-4 text-cyan-200" />
             {statusSummary.lastUpdatedLabel}
           </p>
-          <p className="mt-1 text-xs text-ink/50">当前状态：{statusSummary.currentStatus}</p>
+          <p className="mt-1 text-xs text-slate-500">当前判断：{statusSummary.currentStatus}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {statusSummary.stats.map((item) => (
-            <span key={item.tag} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/65">
-              {item.icon} {item.tag} {item.count}
+            <span key={item.tag} className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs font-semibold text-slate-300">
+              {item.tag} {item.count}
             </span>
           ))}
         </div>
@@ -104,23 +104,23 @@ export function SpotStatusPrompt({
             key={option.tag}
             onClick={() => quickUpdate(option.tag)}
             disabled={Boolean(submittingTag)}
-            className={`flex min-h-14 items-center justify-center gap-2 rounded-lg border px-3 text-base font-bold transition disabled:opacity-55 ${option.className}`}
+            className={`flex min-h-14 items-center justify-center gap-2 rounded-2xl border px-3 text-base font-bold transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-55 ${option.className}`}
           >
-            {submittingTag === option.tag ? <Loader2 className="h-4 w-4 animate-spin" /> : <span>{option.icon}</span>}
+            {submittingTag === option.tag ? <Loader2 className="h-4 w-4 animate-spin" /> : <span className={`status-dot h-2.5 w-2.5 rounded-full ${option.dot}`} />}
             {option.tag}
           </button>
         ))}
       </div>
 
       {message ? (
-        <p className="mt-3 inline-flex items-center gap-2 rounded-lg bg-mint px-3 py-2 text-sm font-semibold text-jadeDark">
+        <p className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-cyan-200/20 bg-cyan-300/10 px-3 py-2 text-sm font-semibold text-cyan-100">
           <CheckCircle2 className="h-4 w-4" />
           {message}
         </p>
       ) : (
-        <p className="mt-3 flex items-center gap-2 text-xs text-ink/45">
+        <p className="mt-3 flex items-center gap-2 text-xs text-slate-500">
           <RefreshCcw className="h-3.5 w-3.5" />
-          不会弹窗打扰，只在你进入点位时轻提醒。
+          状态可能已变化，看到现场就顺手校准一下。
         </p>
       )}
     </section>
@@ -145,14 +145,14 @@ function buildStatusSummary(posts: FeedPost[], spotName: string) {
     count: counts.get(option.tag) ?? 0
   }));
   const winner = [...stats].sort((a, b) => b.count - a.count)[0];
-  const currentStatus = recentPosts.length > 0 && winner.count > 0 ? `${winner.icon} ${winner.tag}` : "暂无可靠实时状态";
+  const currentStatus = recentPosts.length > 0 && winner.count > 0 ? winner.tag : "暂无可靠状态";
 
   if (minutesSinceLatest === null) {
     return {
-      headline: "这个地点还没有可靠实时状态",
-      prompt: "你现在在附近吗？帮忙更新一下状态。",
+      headline: "这个点位还没有实时信号",
+      prompt: "你现在在附近吗？发一条状态，帮同学少跑一趟。",
       lastUpdatedLabel: "暂无更新记录",
-      freshnessLabel: "暂无可靠实时状态",
+      freshnessLabel: "等待信号",
       level: "cold" as const,
       currentStatus,
       stats
@@ -171,9 +171,9 @@ function buildStatusSummary(posts: FeedPost[], spotName: string) {
 }
 
 function statusPrompt(minutes: number) {
-  if (minutes >= 60) return "暂无可靠实时状态。你现在在附近吗？帮忙更新一下状态。";
-  if (minutes >= 30) return "状态可能已变化，建议顺手更新一下。";
-  if (minutes >= 15) return "你现在在附近吗？帮忙更新一下状态。";
+  if (minutes >= 60) return "当前状态大概率已经变化，附近同学会很需要一次新校准。";
+  if (minutes >= 30) return "这条状态有点旧了，看到现场就刷新一下。";
+  if (minutes >= 15) return "这里已经 15 分钟以上没人更新了，状态可能已变化。";
   return "状态还算新，也可以顺手确认一下现场情况。";
 }
 
@@ -183,10 +183,10 @@ function isStatusTag(value: string): value is StatusTag {
 
 function freshnessLabel(minutes: number) {
   if (minutes < 5) return "刚刚更新";
-  if (minutes < 15) return "较新";
-  if (minutes < 30) return "可能已变化";
+  if (minutes < 15) return "信号较新";
+  if (minutes < 30) return "可能变化";
   if (minutes < 60) return "建议更新";
-  return "暂无可靠实时状态";
+  return "信号偏旧";
 }
 
 function freshnessLevel(minutes: number) {
@@ -198,10 +198,10 @@ function freshnessLevel(minutes: number) {
 function FreshnessBadge({ label, level }: { label: string; level: "fresh" | "warm" | "cold" }) {
   const tone =
     level === "fresh"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      ? "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
       : level === "warm"
-        ? "border-amber-200 bg-amber-50 text-amber-800"
-        : "border-ink/10 bg-ink text-white";
+        ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
+        : "border-slate-400/20 bg-slate-400/10 text-slate-300";
 
   return <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold ${tone}`}>{label}</span>;
 }

@@ -4,7 +4,7 @@ import { Feed } from "@/components/Feed";
 import { LoginPanel } from "@/components/LoginPanel";
 import { SpotStatusPrompt } from "@/components/SpotStatusPrompt";
 import type { FeedPost, UserCommentStatusItem, UserContentStatus, UserPostStatusItem } from "@/types/shitan";
-import { ArrowLeft, ArrowUpRight, Clock3, GraduationCap, Loader2, MessageCircle, PlusCircle, Radio, School, ShieldCheck } from "lucide-react";
+import { Activity, ArrowLeft, ArrowUpRight, Clock3, Flame, Loader2, MessageCircle, PlusCircle, Radar, School, ShieldCheck, Signal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { io, type Socket } from "socket.io-client";
@@ -57,6 +57,14 @@ export default function CampusPage({ params }: { params: Promise<{ campusId: str
     return io({ autoConnect: true });
   }, []);
   const activeSpot = useMemo(() => spots.find((spot) => spot.id === activeSpotId) ?? null, [activeSpotId, spots]);
+  const hotSpot = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const post of posts) {
+      const name = post.spot?.name ?? "校内点位";
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+  }, [posts]);
 
   useEffect(() => {
     params.then(({ campusId: id }) => setCampusId(id));
@@ -94,14 +102,13 @@ export default function CampusPage({ params }: { params: Promise<{ campusId: str
       if (new Date(post.expiresAt).getTime() <= Date.now()) return;
       if (activeSpotId && post.spotId !== activeSpotId) return;
       setPosts((current) => [post, ...current.filter((item) => item.id !== post.id)]);
+      setNotice("新的现场状态刚刚进入雷达。");
       if (user) loadMine(campusId);
     });
     socket.on("comment.approved", (comment: FeedPost["comments"][number] & { postId: string }) => {
       setPosts((current) =>
         current.map((post) =>
-          post.id === comment.postId
-            ? { ...post, comments: [...post.comments.filter((item) => item.id !== comment.id), comment] }
-            : post
+          post.id === comment.postId ? { ...post, comments: [...post.comments.filter((item) => item.id !== comment.id), comment] } : post
         )
       );
       if (user) loadMine(campusId);
@@ -127,13 +134,13 @@ export default function CampusPage({ params }: { params: Promise<{ campusId: str
         fetchJson<{ spots?: Spot[] }>(`/api/campuses/${id}/spots`)
       ]);
       if (!campusData.campus) {
-        setLoadError("没有找到这个校区。");
+        setLoadError("没有扫到这个校区。");
         return;
       }
       setCampus(campusData.campus);
       setSpots(spotData.spots ?? []);
     } catch {
-      setLoadError("校区加载失败，请返回首页后重试。");
+      setLoadError("校区雷达加载失败，返回首页后再试一次。");
     } finally {
       setLoading(false);
     }
@@ -161,7 +168,7 @@ export default function CampusPage({ params }: { params: Promise<{ campusId: str
 
       const data = await response.json();
       if (!response.ok) {
-        setNotice(data.error ?? "我的发布记录暂时加载失败。");
+        setNotice("你的校准记录暂时没有加载出来。");
         return;
       }
 
@@ -170,38 +177,38 @@ export default function CampusPage({ params }: { params: Promise<{ campusId: str
         comments: data.comments ?? []
       });
     } catch {
-      setNotice("我的发布记录暂时加载失败。");
+      setNotice("你的校准记录暂时没有加载出来。");
     } finally {
       setMineLoading(false);
     }
   }
 
   async function handleCommentPending() {
-    setNotice("补充内容已进入审核队列，通过后才会公开显示。");
+    setNotice("补充已进入校准队列，通过后会公开显示。");
     await loadMine();
   }
 
   async function handleSpotStatusUpdated(post: FeedPost) {
     setPosts((current) => [post, ...current.filter((item) => item.id !== post.id)]);
-    setNotice("已更新，感谢你帮助同学了解现场情况。");
+    setNotice("你刚刚帮助了附近同学，状态已刷新。");
     if (user) await loadMine();
   }
 
   if (loading) {
     return (
-      <main className="grid min-h-screen place-items-center">
-        <Loader2 className="h-8 w-8 animate-spin text-jade" />
+      <main className="app-shell grid place-items-center">
+        <Loader2 className="h-8 w-8 animate-spin text-cyan-200" />
       </main>
     );
   }
 
   if (loadError || !campus) {
     return (
-      <main className="grid min-h-screen place-items-center px-4">
-        <section className="max-w-md rounded-xl border border-white/70 bg-white p-6 text-center shadow-soft">
-          <p className="text-lg font-bold">{loadError || "校区加载失败"}</p>
-          <Link href="/" className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-ink px-4 text-sm font-semibold text-white hover:bg-jade">
-            返回首页
+      <main className="app-shell grid place-items-center px-4">
+        <section className="glass-card max-w-md rounded-[2rem] p-6 text-center">
+          <p className="text-lg font-bold text-white">{loadError || "校区加载失败"}</p>
+          <Link href="/" className="mt-4 inline-flex h-11 items-center justify-center rounded-2xl bg-cyan-300 px-4 text-sm font-bold text-slate-950 hover:bg-cyan-200">
+            回到首页
           </Link>
         </section>
       </main>
@@ -209,112 +216,98 @@ export default function CampusPage({ params }: { params: Promise<{ campusId: str
   }
 
   return (
-    <main className="min-h-screen">
+    <main className="app-shell">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:py-7">
-        <header className="flex flex-col gap-4 rounded-xl border border-white/70 bg-white/80 p-4 shadow-soft backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <header className="glass-panel flex flex-col gap-4 rounded-[2rem] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="grid h-11 w-11 place-items-center rounded-lg border border-ink/10 bg-white text-ink hover:text-jade" title="返回首页">
+            <Link href="/" className="grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-white/8 text-slate-300 transition hover:text-cyan-200" title="回到首页">
               <ArrowLeft className="h-5 w-5" />
             </Link>
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-ink text-white">
-              <GraduationCap className="h-6 w-6" />
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cyan-300/10 text-cyan-200 ring-1 ring-cyan-200/20">
+              <Radar className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold sm:text-3xl">{campus.displayName}</h1>
-              <p className="text-sm text-ink/55">
+              <h1 className="text-2xl font-bold text-white sm:text-3xl">{campus.displayName}</h1>
+              <p className="text-sm text-slate-400">
                 {campus.city} · {campus.level} · {campus.ownership}
               </p>
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             {user?.role === "admin" ? (
-              <Link href="/admin" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-ink/10 bg-white px-4 text-sm font-semibold text-ink shadow-sm hover:text-jade">
+              <Link href="/admin" className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-4 text-sm font-semibold text-slate-100 transition hover:text-cyan-200">
                 <ShieldCheck className="h-4 w-4" />
-                审核后台
+                审核中枢
               </Link>
             ) : null}
             <LoginPanel user={user} onUser={setUser} />
           </div>
         </header>
 
-        <section className="overflow-hidden rounded-xl border border-white/70 bg-white shadow-soft">
-          <div>
-            <div className="p-5 sm:p-6">
-              <p className="inline-flex items-center gap-2 rounded-full bg-mint px-3 py-1 text-xs font-semibold text-jade">
-                <Radio className="h-3.5 w-3.5" />
-                校园实时状态
+        <section className="glass-panel overflow-hidden rounded-[2.5rem] p-5 sm:p-7">
+          <p className="inline-flex items-center gap-2 rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-100">
+            <span className="status-dot h-2 w-2 rounded-full bg-cyan-300 text-cyan-300" />
+            校园雷达在线
+          </p>
+          <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-end">
+            <div>
+              <h2 className="text-3xl font-bold text-white sm:text-5xl">{campus.schoolName}</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
+                这里收集正在变化的现场信息。状态不会变成长期帖子，24 小时后会自然淡出，留下更接近当下的校园画面。
               </p>
-              <h2 className="mt-4 text-3xl font-bold">{campus.schoolName}</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-7 text-ink/58">
-                这里不做长帖社交，只收集当下可行动的信息：哪里人少、哪里爆满、哪里还有空位。状态默认 24 小时后从前台隐藏。
-              </p>
-              <div className="mt-5 grid gap-3 sm:max-w-sm">
-                <Metric label="实时状态" value={posts.length} />
-              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Metric icon={<Signal className="h-4 w-4" />} label="实时状态" value={posts.length} />
+              <Metric icon={<School className="h-4 w-4" />} label="监测点位" value={spots.length} />
+              <Metric icon={<Flame className="h-4 w-4" />} label="热度点" value={hotSpot?.[0] ?? "等待"} />
             </div>
           </div>
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[420px_minmax(0,1fr)]">
           <div className="space-y-4">
-            <section className="overflow-hidden rounded-xl border border-white/70 bg-white shadow-soft">
-              <div className="border-b border-ink/8 bg-[linear-gradient(135deg,#18211f_0%,#1e8a68_58%,#f4c95d_100%)] p-4 text-white">
-                <p className="text-xs font-semibold text-white/70">实时状态发布</p>
-                <h2 className="mt-1 text-xl font-bold">去发布页选择点位和状态</h2>
+            <section className="glass-card rounded-[2rem] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">Cast</p>
+                  <h2 className="mt-2 text-xl font-bold text-white">发一条校园状态</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">不用写长内容，选点位和状态就能帮附近同学快速判断。</p>
+                </div>
+                <Activity className="h-6 w-6 text-cyan-200" />
               </div>
-              <div className="p-4">
-                <p className="text-sm leading-6 text-ink/55">发布流程已独立成单页，进入后再选择点位、补充说明并点击状态按钮。</p>
-                <Link
-                  href={`/campuses/${campus.id}/publish`}
-                  className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-jade px-4 text-sm font-bold text-white shadow-sm transition hover:bg-jadeDark"
-                >
-                  <PlusCircle className="h-4 w-4" />
-                  发布实时状态
-                  <ArrowUpRight className="h-4 w-4" />
-                </Link>
-              </div>
+              <Link href={`/campuses/${campus.id}/publish`} className="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-cyan-300 px-4 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-500/15 transition hover:-translate-y-0.5 hover:bg-cyan-200">
+                <PlusCircle className="h-4 w-4" />
+                同步现场状态
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
             </section>
             {user ? <MyContentPanel mine={mine} loading={mineLoading} /> : null}
           </div>
+
           <div className="space-y-3">
-            <div className="rounded-xl border border-white/70 bg-white p-4 shadow-sm">
+            <div className="glass-card rounded-[2rem] p-4">
               <div className="flex items-center gap-2">
-                <School className="h-5 w-5 text-jade" />
-                <h3 className="font-bold">最新状态</h3>
+                <School className="h-5 w-5 text-cyan-200" />
+                <h3 className="font-bold text-white">实时状态流</h3>
               </div>
-              <p className="mt-1 text-sm text-ink/55">只显示已公开且未过期的状态，默认按发布时间倒序排列。</p>
+              <p className="mt-1 text-sm text-slate-400">只显示已公开且未过期的状态，越新的信号越靠前。</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  onClick={() => setActiveSpotId("")}
-                  className={`h-9 rounded-lg border px-3 text-sm font-medium ${activeSpotId ? "border-ink/10 bg-white" : "border-jade bg-mint text-jadeDark"}`}
-                >
+                <button onClick={() => setActiveSpotId("")} className={`h-10 rounded-2xl border px-3 text-sm font-semibold transition hover:-translate-y-0.5 ${activeSpotId ? "border-white/10 bg-white/5 text-slate-300" : "border-cyan-300/50 bg-cyan-300/14 text-cyan-100"}`}>
                   全部
                 </button>
                 {spots.map((spot) => (
-                  <button
-                    key={spot.id}
-                    onClick={() => setActiveSpotId(spot.id)}
-                    className={`h-9 rounded-lg border px-3 text-sm font-medium ${activeSpotId === spot.id ? "border-jade bg-mint text-jadeDark" : "border-ink/10 bg-white"}`}
-                  >
+                  <button key={spot.id} onClick={() => setActiveSpotId(spot.id)} className={`h-10 rounded-2xl border px-3 text-sm font-semibold transition hover:-translate-y-0.5 ${activeSpotId === spot.id ? "border-cyan-300/50 bg-cyan-300/14 text-cyan-100" : "border-white/10 bg-white/5 text-slate-300"}`}>
                     {spot.name}
                   </button>
                 ))}
               </div>
             </div>
-            {activeSpot ? (
-              <SpotStatusPrompt
-                campusId={campus.id}
-                spot={activeSpot}
-                posts={posts}
-                userReady={Boolean(user)}
-                onUpdated={handleSpotStatusUpdated}
-              />
-            ) : null}
+            {activeSpot ? <SpotStatusPrompt campusId={campus.id} spot={activeSpot} posts={posts} userReady={Boolean(user)} onUpdated={handleSpotStatusUpdated} /> : null}
             <Feed posts={posts} userReady={Boolean(user)} onCommentPending={handleCommentPending} />
           </div>
         </section>
 
-        {notice ? <p className="rounded-xl bg-mint p-3 text-sm font-medium text-jadeDark">{notice}</p> : null}
+        {notice ? <p className="fade-in rounded-2xl border border-cyan-200/20 bg-cyan-300/10 p-3 text-sm font-medium text-cyan-100">{notice}</p> : null}
       </div>
     </main>
   );
@@ -324,39 +317,39 @@ function MyContentPanel({ mine, loading }: { mine: MineState; loading: boolean }
   const total = mine.posts.length + mine.comments.length;
 
   return (
-    <section className="rounded-xl border border-white/70 bg-white p-4 shadow-soft">
+    <section className="glass-card rounded-[2rem] p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-bold">我的发布记录</h3>
-          <p className="mt-1 text-sm text-ink/50">查看你在当前校区发布、补充和审核后的结果。</p>
+          <h3 className="font-bold text-white">我的校准记录</h3>
+          <p className="mt-1 text-sm text-slate-500">你发出的状态和补充，会在这里留下处理进度。</p>
         </div>
-        <span className="rounded-full bg-mint px-3 py-1 text-xs font-semibold text-jade">{loading ? "刷新中" : `${total} 条`}</span>
+        <span className="rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-100">{loading ? "刷新中" : `${total} 条`}</span>
       </div>
 
       {total === 0 ? (
-        <div className="mt-4 rounded-lg border border-dashed border-ink/15 bg-stone p-4 text-sm text-ink/55">还没有记录。发布实时状态后会先出现在这里。</div>
+        <div className="mt-4 rounded-3xl border border-dashed border-white/15 bg-white/5 p-4 text-sm text-slate-400">还没有记录。发出第一条状态后，这里会亮起来。</div>
       ) : (
         <div className="mt-4 space-y-3">
           {mine.posts.map((post) => (
-            <article key={post.id} className="rounded-lg border border-ink/10 bg-stone p-3">
+            <article key={post.id} className="rounded-3xl border border-white/10 bg-white/5 p-3">
               <p className={`flex items-center gap-2 text-xs font-semibold ${statusColor(post.status)}`}>
                 <Clock3 className="h-3.5 w-3.5" />
                 状态 · {post.statusTag} · {statusLabel(post.status)} · {post.spot?.name ?? "校内点位"} · {formatTime(post.createdAt)}
               </p>
-              {post.text !== post.statusTag ? <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink/80">{post.text}</p> : null}
-              <p className="mt-2 text-xs text-ink/45">属实 {post.confirmsCount} · 已变化 {post.outdatedCount}</p>
+              {post.text !== post.statusTag ? <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">{post.text}</p> : null}
+              <p className="mt-2 text-xs text-slate-500">属实 {post.confirmsCount} · 可能变了 {post.outdatedCount}</p>
               <StatusNote status={post.status} reason={post.moderationReason} expiresAt={post.expiresAt} />
             </article>
           ))}
 
           {mine.comments.map((comment) => (
-            <article key={comment.id} className="rounded-lg border border-ink/10 bg-stone p-3">
+            <article key={comment.id} className="rounded-3xl border border-white/10 bg-white/5 p-3">
               <p className={`flex items-center gap-2 text-xs font-semibold ${statusColor(comment.status)}`}>
                 <MessageCircle className="h-3.5 w-3.5" />
                 补充 · {statusLabel(comment.status)} · {formatTime(comment.createdAt)}
               </p>
-              <p className="mt-2 rounded-md bg-white px-3 py-2 text-sm leading-6 text-ink/80">{comment.text}</p>
-              <p className="mt-2 line-clamp-2 text-xs text-ink/45">补充于：{comment.post.text}</p>
+              <p className="mt-2 rounded-2xl border border-white/10 bg-slate-950/35 px-3 py-2 text-sm leading-6 text-slate-300">{comment.text}</p>
+              <p className="mt-2 line-clamp-2 text-xs text-slate-500">补充于：{comment.post.text}</p>
               <StatusNote status={comment.status} reason={comment.moderationReason} />
             </article>
           ))}
@@ -369,25 +362,28 @@ function MyContentPanel({ mine, loading }: { mine: MineState; loading: boolean }
 function StatusNote({ status, reason, expiresAt }: { status: UserContentStatus; reason: string | null; expiresAt?: string }) {
   if (status === "approved") {
     const expired = expiresAt ? new Date(expiresAt).getTime() <= Date.now() : false;
-    return <p className="mt-2 rounded-md bg-white px-3 py-2 text-xs text-jadeDark">{expired ? "已过期，保留为历史记录。" : "已公开展示，过期前其他同学可以看到。"}</p>;
+    return <p className="mt-2 rounded-2xl border border-cyan-200/20 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100">{expired ? "已淡出实时流，保留为历史记录。" : "已进入实时流，过期前附近同学可以看到。"}</p>;
   }
 
   if (status === "pending") {
-    return <p className="mt-2 rounded-md bg-white px-3 py-2 text-xs text-ink/55">正在等待管理员审核，暂时不会公开展示。</p>;
+    return <p className="mt-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-400">正在等待审核，暂时不会公开显示。</p>;
   }
 
   if (status === "rejected") {
-    return <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">未通过：{reason || "管理员没有填写具体原因。"}</p>;
+    return <p className="mt-2 rounded-2xl border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-xs text-rose-100">未通过：{reason || "管理员没有填写具体原因。"}</p>;
   }
 
-  return <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">已隐藏：{reason || "管理员没有填写具体原因。"}</p>;
+  return <p className="mt-2 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs text-amber-100">已隐藏：{reason || "管理员没有填写具体原因。"}</p>;
 }
 
-function Metric({ label, value }: { label: string | number; value: string | number }) {
+function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <div className="rounded-lg border border-ink/10 bg-stone px-3 py-3">
-      <p className="text-xs text-ink/45">{label}</p>
-      <p className="mt-1 text-lg font-bold">{value}</p>
+    <div className="rounded-3xl border border-white/10 bg-white/5 px-3 py-3">
+      <p className="flex items-center gap-2 text-xs text-slate-500">
+        <span className="text-cyan-200">{icon}</span>
+        {label}
+      </p>
+      <p className="mt-1 truncate text-lg font-bold text-white">{value}</p>
     </div>
   );
 }
@@ -400,10 +396,10 @@ function statusLabel(status: UserContentStatus) {
 }
 
 function statusColor(status: UserContentStatus) {
-  if (status === "approved") return "text-jade";
-  if (status === "rejected") return "text-red-700";
-  if (status === "hidden") return "text-amber-800";
-  return "text-ink/55";
+  if (status === "approved") return "text-cyan-100";
+  if (status === "rejected") return "text-rose-200";
+  if (status === "hidden") return "text-amber-200";
+  return "text-slate-400";
 }
 
 function formatTime(value: string) {

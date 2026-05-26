@@ -5,15 +5,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#18211f",
-        jade: "#1e8a68",
-        jadeDark: "#14634d",
-        mint: "#e8f6ef",
-        clay: "#f5f0e8",
-        stone: "#faf8f3"
+        ink: "#ecfeff",
+        jade: "#2dd4bf",
+        jadeDark: "#14b8a6",
+        mint: "#0f766e",
+        clay: "#1e293b",
+        stone: "#0f172a"
       },
       boxShadow: {
-        soft: "0 18px 55px rgba(16, 30, 27, 0.10)"
+        soft: "0 22px 80px rgba(0, 0, 0, 0.30)"
       }
     }
   },

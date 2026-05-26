@@ -30,28 +30,89 @@ export async function POST(request: Request, { params }: { params: Promise<{ cam
     const imageUrls = imageUrlsSchema.parse(body.imageUrls ?? []);
     const spotId = spotIdSchema.parse(body.spotId);
 
-    const spot = await prisma.spot.findFirst({
+    const spot = await findSpot(campusId, spotId);
+
+    if (!spot) {
+      return Response.json({ error: "请选择当前校区里的点位。" }, { status: 400 });
+    }
+
+    const normalizedPost = await createApprovedPost({
+      supabase,
+      campusId,
+      spotId,
+      authorId: user.id,
+      text,
+      imageUrls,
+      statusTag
+    });
+    const [hydratedPost] = await hydratePosts(supabase, [normalizedPost as Parameters<typeof hydratePosts>[1][number]]);
+    emitToCampus(campusId, "post.approved", hydratedPost);
+
+    return Response.json({ post: hydratedPost });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+async function findSpot(campusId: string, spotId: string) {
+  try {
+    return await prisma.spot.findFirst({
       where: {
         id: spotId,
         campusId
       },
       select: { id: true }
     });
-
-    if (!spot) {
-      return Response.json({ error: "请选择当前校区里的点位。" }, { status: 400 });
+  } catch (error) {
+    if (process.env.NODE_ENV === "production" && !isPrismaTlsError(error)) {
+      throw error;
     }
 
+    const { data, error: supabaseError } = await createSupabaseServerClient()
+      .from("Spot")
+      .select("id")
+      .eq("id", spotId)
+      .eq("campusId", campusId)
+      .maybeSingle();
+
+    if (supabaseError) {
+      throw supabaseError;
+    }
+
+    return data;
+  }
+}
+
+async function createApprovedPost({
+  supabase,
+  campusId,
+  spotId,
+  authorId,
+  text,
+  imageUrls,
+  statusTag
+}: {
+  supabase: Awaited<ReturnType<typeof getCurrentSupabaseClient>>;
+  campusId: string;
+  spotId: string;
+  authorId: string;
+  text: string;
+  imageUrls: string[];
+  statusTag: string;
+}) {
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  try {
     const createdPost = await prisma.post.create({
       data: {
         campusId,
         spotId,
-        authorId: user.id,
+        authorId,
         text,
         imageUrls,
         statusTag,
         status: "approved",
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+        expiresAt
       },
       include: {
         campus: {
@@ -70,16 +131,39 @@ export async function POST(request: Request, { params }: { params: Promise<{ cam
       }
     });
 
-    const normalizedPost = {
+    return {
       ...createdPost,
       expiresAt: createdPost.expiresAt.toISOString(),
       createdAt: createdPost.createdAt.toISOString()
     };
-    const [hydratedPost] = await hydratePosts(supabase, [normalizedPost]);
-    emitToCampus(campusId, "post.approved", hydratedPost);
-
-    return Response.json({ post: hydratedPost });
   } catch (error) {
-    return jsonError(error);
+    if (process.env.NODE_ENV === "production" && !isPrismaTlsError(error)) {
+      throw error;
+    }
+
+    const { data, error: rpcError } = await supabase.rpc("submit_post", {
+      p_campus_id: campusId,
+      p_spot_id: spotId,
+      p_text: text,
+      p_image_urls: imageUrls,
+      p_status_tag: statusTag
+    });
+
+    if (rpcError) {
+      throw rpcError;
+    }
+
+    const post = Array.isArray(data) ? data[0] : data;
+
+    return {
+      ...post,
+      campus: null,
+      spot: null
+    };
   }
+}
+
+function isPrismaTlsError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("Error opening a TLS connection");
 }
